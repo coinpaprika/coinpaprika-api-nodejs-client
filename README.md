@@ -1,6 +1,6 @@
 # Coinpaprika API NodeJS Client
 
-This library provides convenient way to use [Coinpaprika.com API](https://api.coinpaprika.com/) in Swift.
+This library provides convenient way to use [Coinpaprika.com API](https://api.coinpaprika.com/) in NodeJS.
 
 [Coinpaprika](https://coinpaprika.com) delivers full market data to the world of crypto: coin prices, volumes, market caps, ATHs, return rates and more.
 
@@ -31,7 +31,7 @@ Get global information
 
 ##### Examples
 ```javascript
-const client = new CoinMarketCap();
+const client = new CoinpaprikaAPI();
 client.getGlobal().then(console.log).catch(console.error);
 ```
 
@@ -42,7 +42,7 @@ Get a list of all cryptocurrencies available on coinpaprika.com.
 ##### Examples
 
 ```javascript
-const client = new CoinMarketCap();
+const client = new CoinpaprikaAPI();
 client.getCoins().then(console.log).catch(console.error);
 ```
 
@@ -60,7 +60,7 @@ Get information on all tickers or specifed ticker.
 ##### Examples
 
 ```javascript
-const client = new CoinMarketCap();
+const client = new CoinpaprikaAPI();
 client.getTicker().then(console.log).catch(console.error);
 client.getTicker({coinId: 'btc-bitcoin'}).then(console.log).catch(console.error);
 ```
