@@ -1,0 +1,51 @@
+{
+  "name": "@coinpaprika/api-nodejs-client",
+  "version": "1.0.0",
+  "description": "This library provides convenient way to use Coinpaprika.com API in NodeJS",
+  "license": "MIT",
+  "repository": {
+    "url": "https://github.com/coinpaprika/coinpaprika-api-nodejs-client",
+    "type": "git"
+  },
+  "homepage": "https://api.coinpaprika.com/",
+  "main": "index.js",
+  "files": [
+    "index.js"
+  ],
+  "scripts": {
+    "test": "jest",
+    "test:cov": "npm run test -- --coverage",
+    "lint": "standard --fix ./*.js",
+    "start": "npm run test",
+    "pretest": "npm run lint"
+  },
+  "jest": {
+    "setupTestFrameworkScriptFile": "./test.js"
+  },
+  "author": "coinpaprika.com",
+  "devDependencies": {
+    "documentation": "^8.1.2",
+    "dotenv": "^6.0.0",
+    "husky": "^0.14.3",
+    "jest": "^23.5.0",
+    "jest-chain": "^1.0.3",
+    "jest-extended": "^0.8.1",
+    "standard": "^12.0.1"
+  },
+  "dependencies": {
+    "node-fetch": "^2.2.0",
+    "qs": "^6.5.2"
+  },
+  "standard": {
+    "env": [
+      "jest"
+    ]
+  },
+  "keywords": [
+    "api",
+    "client",
+    "coinpaprika",
+    "bitcoin",
+    "cryptocurrency"
+  ]
+}
