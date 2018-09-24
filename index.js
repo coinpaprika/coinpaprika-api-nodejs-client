@@ -80,8 +80,8 @@ class CoinpaprikaAPI {
 }
 
 const createRequest = (args = {}) => {
-  const { url, config, query, fetcher } = args;
+  const { url, config, query, fetcher } = args
   return fetcher(`${url}${query ? `?${qs.stringify(query)}` : ''}`, config).then(res => res.json())
-};
+}
 
 module.exports = CoinpaprikaAPI
