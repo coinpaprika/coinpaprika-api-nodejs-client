@@ -1,5 +1,11 @@
 # Coinpaprika API NodeJS Client
 
+<span class="badge-npmversion"><a href="https://www.npmjs.com/package/@coinpaprika/api-nodejs-client" title="View this project on NPM"><img src="https://img.shields.io/npm/v/@coinpaprika/api-nodejs-client.svg" alt="NPM version" /></a></span>
+<span class="badge-travisci"><a href="http://travis-ci.org/bevry/badges" title="Check this project's build status on TravisCI"><img src="https://img.shields.io/travis/coinpaprika/coinpaprika-api-nodejs-client/master.svg" alt="Travis CI Build Status" /></a></span>
+<span class="badge-npmdownloads"><a href="https://www.npmjs.com/package/@coinpaprika/api-nodejs-client" title="View this project on NPM"><img src="https://img.shields.io/npm/dm/@coinpaprika/api-nodejs-client.svg" alt="NPM downloads" /></a></span>
+<span class="badge-npmlicence"><a href="https://www.npmjs.com/package/@coinpaprika/api-nodejs-client" title="View this project on NPM"><img src="https://img.shields.io/npm/l/@coinpaprika/api-nodejs-client.svg" alt="NPM downloads" /></a></span>
+<span class="badge-daviddm"><a href="https://david-dm.org/coinpaprika/coinpaprika-api-nodejs-client" title="View the status of this project's dependencies on DavidDM"><img src="https://david-dm.org/googleapis/google-api-nodejs-client.svg" alt="Dependency Status" /></a></span>
+
 This library provides convenient way to use [Coinpaprika.com API](https://api.coinpaprika.com/) in NodeJS.
 
 [Coinpaprika](https://coinpaprika.com) delivers full market data to the world of crypto: coin prices, volumes, market caps, ATHs, return rates and more.
