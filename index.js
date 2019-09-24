@@ -45,9 +45,9 @@ class CoinpaprikaAPI {
 
   /**
    * Get information on all tickers or specifed ticker.
+   * DEPRECATED
    *
    * @param {Object=} options Options for the request
-   * @param {String=} [options.coinId="all"] Type of cryptocurrency to include ("all" | "coins" | "tokens")
    *
    * @example
    * const client = new CoinpaprikaAPI()
@@ -55,10 +55,78 @@ class CoinpaprikaAPI {
    * client.getTicker().then(console.log).catch(console.error)
    */
   getTicker (args = {}) {
+    if (Object.prototype.toString.call(args) !== '[object Object]') {
+      throw Error('Please pass object as arg.')
+    }
+
     let { coinId } = args
     return createRequest({
       fetcher: this.fetcher,
       url: `${this.url}/ticker${(coinId) ? `/${coinId}` : ``}`,
+      config: this.config
+    })
+  }
+
+  /**
+   * Get tickers for all coins
+   * @param {Object=} options for the request consistent to https://api.coinpaprika.com/#tag/Tickers
+   * @param coinId: string
+   * @param quotes: array of strings
+   * @param historical: object
+   * @example
+   * const client = new CoinpaprikaAPI()
+   * client.getAllTickers({
+   *     coinId:'btc-bitcoin',
+   *     quotes: ['BTC', 'ETH']
+   * })
+   * .then(console.log)
+   * .catch(console.error)
+   *
+   * client.getAllTickers({
+   *     coinId:'btc-bitcoin',
+   *     historical: {
+   *         start: '2018-02-15',
+   *         end: '2018-02-16',
+   *         limit: 2000,
+   *         quote: 'btc',
+   *         interval: '30m'
+   *     }
+   * })
+   * .then(console.log)
+   * .catch(console.error)
+   */
+  getAllTickers (params = {}) {
+    if (Object.prototype.toString.call(params) !== '[object Object]') {
+      throw Error('Please pass object as arg.')
+    }
+
+    const { coinId, quotes, historical } = params
+
+    if ((historical && typeof coinId === 'undefined') || (coinId && historical && typeof historical.start === 'undefined')) {
+      throw Error('required param was not pass, please check CoinpaprikaAPI client usage')
+    }
+
+    const coinIdParam = coinId ? `/${coinId}` : ''
+    const quotesParam = quotes ? `?quotes=${quotes.join(',')}` : ''
+    let historicalParam = ''
+    if (historical && coinId) {
+      historicalParam = ((historicalArgs = {}) => {
+        const { start, end, limit, quote, interval } = historicalArgs
+        const startParam = `start=${start}`
+        const endParam = end ? `&end=${end}` : ''
+        const limitParam = limit ? `&limit=${limit}` : ''
+        const quoteParam = quote ? `&quote=${quote}` : ''
+        const intervalParam = interval ? `&interval=${interval}` : ''
+
+        return `/historical?${startParam}${endParam}${limitParam}${quoteParam}${intervalParam}`
+      })(historical)
+    }
+
+    const query = `${coinIdParam}${historicalParam}${quotesParam}`
+
+    return createRequest({
+      fetcher: this.fetcher,
+      url: `${this.url}/tickers/${query}`,
       config: this.config
     })
   }

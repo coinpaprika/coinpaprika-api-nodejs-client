@@ -53,7 +53,7 @@ client.getCoins().then(console.log).catch(console.error);
 ```
 
 #### getTicker
-
+(**DEPRECATED**)
 Get information on all tickers or specifed ticker.
 
 
@@ -69,6 +69,42 @@ Get information on all tickers or specifed ticker.
 const client = new CoinpaprikaAPI();
 client.getTicker().then(console.log).catch(console.error);
 client.getTicker({coinId: 'btc-bitcoin'}).then(console.log).catch(console.error);
+```
+
+#### getAllTickers
+
+Get tickers for all coins
+
+##### Parameters
+
+-   `params` (optional, default `{}`)
+    -   `coinId` string (optional but *`required` with historical key*)
+    -   `quotes` array of strings (optional)
+    -   `historical` object (optional)
+        - start: string (required)
+        - end: string (optional)
+        - limit: integer (optional)
+        - quote: string (optional)
+        - interval: string (optional) 
+ 
+##### Examples
+```javascript
+const client = new CoinpaprikaAPI()
+client.getAllTickers({
+    coinId:'btc-bitcoin',
+    quotes: ['BTC', 'ETH']
+}).then(console.log).catch(console.error)
+
+client.getAllTickers({
+    coinId:'btc-bitcoin',
+    historical: {
+        start: '2018-02-15',
+        end: '2018-02-16',
+        limit: 2000,
+        quote: 'btc',
+        interval: '30m'
+    }
+}).then(console.log).catch(console.error)
 ```
 
 ## License
