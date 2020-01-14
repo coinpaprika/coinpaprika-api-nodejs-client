@@ -25,4 +25,16 @@ describe('getCoinsOHLCVHistorical', () => {
       })
     })
   })
+
+  it('returns Promise if async/await not used', () => {
+    const params = {
+      coinId: "btc-bitcoin",
+      quote: "usd",
+      start: "2020-01-01",
+      end: "2020-01-02"
+    }
+    const response = client.getCoinsOHLCVHistorical(params)
+    expect(response instanceof Promise).toBe(true)
+  })
+
 })

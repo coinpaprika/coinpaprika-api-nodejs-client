@@ -154,7 +154,7 @@ class CoinpaprikaAPI {
    * coinId: "btc-bitcoin",
    * quote: "usd",
    * start: "2020-01-01",
-   * end: "2020-01-02" 
+   * end: "2020-01-02"
    * }).then(console.log).catch(console.error)
    */
   getCoinsOHLCVHistorical (params = {}) {
