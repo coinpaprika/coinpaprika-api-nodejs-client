@@ -158,7 +158,7 @@ class CoinpaprikaAPI {
    * }).then(console.log).catch(console.error)
    */
   getCoinsOHLCVHistorical (params = {}) {
-    if (typeof params !== 'object') {
+    if (Object.prototype.toString.call(params) !== '[object Object]') {
       throw Error('Please pass object as arg.')
     }
 
