@@ -38,13 +38,10 @@ describe('getCoinsOHLCVHistorical', () => {
   })
 
   it('throw an error if the parameter is an array', async () => {
-    const params = []
-    try {
-      await client.getCoinsOHLCVHistorical(params)
-      throw new Error("didn't throw");
-    } catch (err) {
-      expect(err.message).toBe("Please pass object as arg.")
-    }
+    expect(() => {
+      const params = []
+      client.getCoinsOHLCVHistorical(params).resolve()
+    }).toThrowError("Please pass object as arg.")
   })
 
 })
