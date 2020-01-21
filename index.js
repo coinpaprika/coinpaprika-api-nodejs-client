@@ -145,6 +145,43 @@ class CoinpaprikaAPI {
       config: this.config
     })
   }
+
+  /**
+   * Get the coin OHLCV historical
+   * @example
+   * const client = new CoinpaprikaAPI()
+   * client.getCoinsOHLCVHistorical({
+   * coinId: "btc-bitcoin",
+   * quote: "usd",
+   * start: "2020-01-01",
+   * end: "2020-01-02"
+   * }).then(console.log).catch(console.error)
+   */
+  getCoinsOHLCVHistorical (params = {}) {
+    if (Object.prototype.toString.call(params) !== '[object Object]') {
+      throw Error('Please pass object as arg.')
+    }
+
+    const { coinId, quote, start, end } = params
+
+    if (typeof coinId !== 'string' || typeof start !== 'string' || !coinId || !start) {
+      throw Error('required param was not pass, please check CoinpaprikaAPI client usage')
+    }
+
+    const reqparams = {
+      coinId: coinId,
+      start: `?start=${start}`,
+      quote: quote ? `&quote=${quote}` : '',
+      end: end ? `&end=${end}` : ''
+    }
+    const query = `${reqparams.start}${reqparams.end}${reqparams.quote}`
+
+    return createRequest({
+      fetcher: this.fetcher,
+      url: `${this.url}/coins/${reqparams.coinId}/ohlcv/historical${query}`,
+      config: this.config
+    })
+  }
 }
 
 const createRequest = (args = {}) => {
