@@ -18,7 +18,7 @@ class CoinpaprikaAPI {
     this.config = Object.assign({}, {
       method: 'GET',
       headers: {
-        'Accept': 'application/json',
+        Accept: 'application/json',
         'Accept-Charset': 'utf-8',
         'Accept-Encoding': 'deflate, gzip'
       }
@@ -59,10 +59,10 @@ class CoinpaprikaAPI {
       throw Error('Please pass object as arg.')
     }
 
-    let { coinId } = args
+    const { coinId } = args
     return createRequest({
       fetcher: this.fetcher,
-      url: `${this.url}/ticker${(coinId) ? `/${coinId}` : ``}`,
+      url: `${this.url}/ticker${(coinId) ? `/${coinId}` : ''}`,
       config: this.config
     })
   }
