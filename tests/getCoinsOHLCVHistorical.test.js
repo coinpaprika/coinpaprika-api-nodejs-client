@@ -6,14 +6,18 @@ describe('getCoinsOHLCVHistorical', () => {
     client = new CoinpaprikaAPI()
   })
 
+  const weekAgo = new Date(Date.now() - 1000 * 60 * 60 * 1)
+  const start = weekAgo.toISOString().slice(0, 10)
+
   it('returns array of objects consistent with API documentation', async () => {
+    const weekAgo = new Date(Date.now() - 7 * 1000)
     const params = {
         coinId: "btc-bitcoin",
         quote: "usd",
-        start: "2020-01-01",
-        end: "2020-01-02"
+        start: weekAgo.toISOString().slice(0, 10),
     } 
     const response = await client.getCoinsOHLCVHistorical(params)
+    console.log(response)
     expect(Array.isArray(response)).toBeTruthy()
 
     const expectedProperties = ['time_open', 'time_close', 'open', 'high', 'low', 'close', 'volume', 'market_cap']
@@ -30,8 +34,7 @@ describe('getCoinsOHLCVHistorical', () => {
     const params = {
       coinId: "btc-bitcoin",
       quote: "usd",
-      start: "2020-01-01",
-      end: "2020-01-02"
+      start
     }
     const response = client.getCoinsOHLCVHistorical(params)
     expect(response instanceof Promise).toBe(true)

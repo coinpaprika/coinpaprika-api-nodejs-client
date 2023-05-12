@@ -55,7 +55,8 @@ describe('getAllTickers', () => {
     const payload = {
       coinId: 'btc-bitcoin',
       historical: {
-        start: '2019-09-22'
+        start: '2022-12-12',
+        interval: '1d'
       }
     }
 
@@ -72,20 +73,19 @@ describe('getAllTickers', () => {
   })
 
   it('returns properly response when all of "historical" params are passed', async () => {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
     const payload = {
       coinId: 'btc-bitcoin',
       historical: {
-        start: '2019-09-18',
-        end: '2019-09-19',
-        limit: 2000,
-        interval: '1h',
+        start: sevenDaysAgo,
+        interval: '1d',
         quote: 'btc'
       }
     }
 
     const response = await client.getAllTickers(payload)
     expect(Array.isArray(response)).toBeTruthy()
-    expect(response.length).toEqual(24)
+    expect(response.length).toEqual(8)
 
     response.forEach(item => {
       expect(isObject(item)).toBeTruthy()
@@ -94,9 +94,11 @@ describe('getAllTickers', () => {
   })
 
   it('throws when is historical endpoint call but coinId param was not pass', () => {
+    const start = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
     const payload = {
       historical: {
-        start: '2019-09-22'
+        start,
+        interval: '1d'
       }
     }
     expect(() => {
