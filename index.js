@@ -18,7 +18,7 @@ class CoinpaprikaAPI {
     this.config = Object.assign({}, {
       method: 'GET',
       headers: {
-        'Accept': 'application/json',
+        Accept: 'application/json',
         'Accept-Charset': 'utf-8',
         'Accept-Encoding': 'deflate, gzip'
       }
@@ -59,10 +59,10 @@ class CoinpaprikaAPI {
       throw Error('Please pass object as arg.')
     }
 
-    let { coinId } = args
+    const { coinId } = args
     return createRequest({
       fetcher: this.fetcher,
-      url: `${this.url}/ticker${(coinId) ? `/${coinId}` : ``}`,
+      url: `${this.url}/ticker${(coinId) ? `/${coinId}` : ''}`,
       config: this.config
     })
   }
@@ -147,6 +147,22 @@ class CoinpaprikaAPI {
   }
 
   /**
+   * Get particular coin by coinId available on coinpaprika.com.
+   *
+   * @example
+   * const client = new CoinpaprikaAPI()
+   * client.getCoin('btc-bitcoin').then(console.log).catch(console.error)
+   */
+  getCoin (coinId) {
+    if (!coinId) throw new Error('Can not be called without coinId')
+
+    return createRequest({
+      fetcher: this.fetcher,
+      url: `${this.url}/coins/${coinId}`
+    })
+  }
+
+  /**
    * Get the coin OHLCV historical
    * @example
    * const client = new CoinpaprikaAPI()
@@ -169,7 +185,7 @@ class CoinpaprikaAPI {
     }
 
     const reqparams = {
-      coinId: coinId,
+      coinId,
       start: `?start=${start}`,
       quote: quote ? `&quote=${quote}` : '',
       end: end ? `&end=${end}` : ''
