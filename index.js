@@ -198,6 +198,292 @@ class CoinpaprikaAPI {
       config: this.config
     })
   }
+
+  /**
+   * Get latest OHLCV data for a coin (last full day)
+   * @param {string} coinId
+   * @param {Object=} params - Optional: { quote }
+   */
+  getCoinsOHLCVLatest (coinId, params = {}) {
+    if (!coinId) throw new Error('coinId is required')
+    return createRequest({
+      fetcher: this.fetcher,
+      url: `${this.url}/coins/${coinId}/ohlcv/latest`,
+      config: this.config,
+      query: params
+    })
+  }
+
+  /**
+   * Get today's OHLCV data for a coin (updates until day close)
+   * @param {string} coinId
+   * @param {Object=} params - Optional: { quote }
+   */
+  getCoinsOHLCVToday (coinId, params = {}) {
+    if (!coinId) throw new Error('coinId is required')
+    return createRequest({
+      fetcher: this.fetcher,
+      url: `${this.url}/coins/${coinId}/ohlcv/today`,
+      config: this.config,
+      query: params
+    })
+  }
+
+  /**
+   * Get Twitter timeline for a coin
+   * @param {string} coinId
+   */
+  getCoinTwitter (coinId) {
+    if (!coinId) throw new Error('coinId is required')
+    return createRequest({
+      fetcher: this.fetcher,
+      url: `${this.url}/coins/${coinId}/twitter`,
+      config: this.config
+    })
+  }
+
+  /**
+   * Get events for a coin
+   * @param {string} coinId
+   */
+  getCoinEvents (coinId) {
+    if (!coinId) throw new Error('coinId is required')
+    return createRequest({
+      fetcher: this.fetcher,
+      url: `${this.url}/coins/${coinId}/events`,
+      config: this.config
+    })
+  }
+
+  /**
+   * Get exchanges where a coin is listed
+   * @param {string} coinId
+   */
+  getCoinExchanges (coinId) {
+    if (!coinId) throw new Error('coinId is required')
+    return createRequest({
+      fetcher: this.fetcher,
+      url: `${this.url}/coins/${coinId}/exchanges`,
+      config: this.config
+    })
+  }
+
+  /**
+   * Get markets for a coin
+   * @param {string} coinId
+   * @param {Object=} params - Optional: { quotes }
+   */
+  getCoinMarkets (coinId, params = {}) {
+    if (!coinId) throw new Error('coinId is required')
+    return createRequest({
+      fetcher: this.fetcher,
+      url: `${this.url}/coins/${coinId}/markets`,
+      config: this.config,
+      query: params
+    })
+  }
+
+  /**
+   * Get coin ID mappings to other data providers (CoinGecko, CMC, etc.)
+   * @param {Object=} params - Optional: { limit }
+   */
+  getCoinsMappings (params = {}) {
+    return createRequest({
+      fetcher: this.fetcher,
+      url: `${this.url}/coins/mappings`,
+      config: this.config,
+      query: params
+    })
+  }
+
+  /**
+   * Get person details by ID
+   * @param {string} personId
+   */
+  getPeople (personId) {
+    if (!personId) throw new Error('personId is required')
+    return createRequest({
+      fetcher: this.fetcher,
+      url: `${this.url}/people/${personId}`,
+      config: this.config
+    })
+  }
+
+  /**
+   * Get all tags
+   * @param {Object=} params - Optional: { additional_fields }
+   */
+  getTags (params = {}) {
+    return createRequest({
+      fetcher: this.fetcher,
+      url: `${this.url}/tags`,
+      config: this.config,
+      query: params
+    })
+  }
+
+  /**
+   * Get tag by ID
+   * @param {string} tagId
+   * @param {Object=} params - Optional: { additional_fields }
+   */
+  getTag (tagId, params = {}) {
+    if (!tagId) throw new Error('tagId is required')
+    return createRequest({
+      fetcher: this.fetcher,
+      url: `${this.url}/tags/${tagId}`,
+      config: this.config,
+      query: params
+    })
+  }
+
+  /**
+   * Get list of exchanges
+   * @param {Object=} params - Optional: { quotes }
+   */
+  getExchanges (params = {}) {
+    return createRequest({
+      fetcher: this.fetcher,
+      url: `${this.url}/exchanges`,
+      config: this.config,
+      query: params
+    })
+  }
+
+  /**
+   * Get exchange by ID
+   * @param {string} exchangeId
+   * @param {Object=} params - Optional: { quotes }
+   */
+  getExchange (exchangeId, params = {}) {
+    if (!exchangeId) throw new Error('exchangeId is required')
+    return createRequest({
+      fetcher: this.fetcher,
+      url: `${this.url}/exchanges/${exchangeId}`,
+      config: this.config,
+      query: params
+    })
+  }
+
+  /**
+   * Get markets on an exchange
+   * @param {string} exchangeId
+   * @param {Object=} params - Optional: { quotes }
+   */
+  getExchangeMarkets (exchangeId, params = {}) {
+    if (!exchangeId) throw new Error('exchangeId is required')
+    return createRequest({
+      fetcher: this.fetcher,
+      url: `${this.url}/exchanges/${exchangeId}/markets`,
+      config: this.config,
+      query: params
+    })
+  }
+
+  /**
+   * Search for coins, exchanges, people, tags
+   * @param {Object} params - { q, c, modifier, limit }
+   */
+  search (params = {}) {
+    if (!params.q) throw new Error('q (search query) is required')
+    return createRequest({
+      fetcher: this.fetcher,
+      url: `${this.url}/search`,
+      config: this.config,
+      query: params
+    })
+  }
+
+  /**
+   * Convert between currencies
+   * @param {Object} params - { base_currency_id, quote_currency_id, amount }
+   */
+  priceConverter (params = {}) {
+    return createRequest({
+      fetcher: this.fetcher,
+      url: `${this.url}/price-converter`,
+      config: this.config,
+      query: params
+    })
+  }
+
+  /**
+   * Get list of contract platforms (blockchains with smart contract support)
+   */
+  getPlatforms () {
+    return createRequest({
+      fetcher: this.fetcher,
+      url: `${this.url}/contracts`,
+      config: this.config
+    })
+  }
+
+  /**
+   * Get all contracts/tokens on a platform
+   * @param {string} platformId - e.g., 'eth-ethereum'
+   */
+  getContracts (platformId) {
+    if (!platformId) throw new Error('platformId is required')
+    return createRequest({
+      fetcher: this.fetcher,
+      url: `${this.url}/contracts/${platformId}`,
+      config: this.config
+    })
+  }
+
+  /**
+   * Get ticker data for a token by contract address
+   * @param {string} platformId - e.g., 'eth-ethereum'
+   * @param {string} contractAddress - e.g., '0xdac17f...'
+   */
+  getTickerByContract (platformId, contractAddress) {
+    if (!platformId) throw new Error('platformId is required')
+    if (!contractAddress) throw new Error('contractAddress is required')
+    return createRequest({
+      fetcher: this.fetcher,
+      url: `${this.url}/contracts/${platformId}/${contractAddress}`,
+      config: this.config
+    })
+  }
+
+  /**
+   * Get historical ticker data by contract address
+   * @param {string} platformId - e.g., 'eth-ethereum'
+   * @param {string} contractAddress
+   * @param {Object=} params - { start, end, limit, quote, interval }
+   */
+  getHistoricalByContract (platformId, contractAddress, params = {}) {
+    if (!platformId) throw new Error('platformId is required')
+    if (!contractAddress) throw new Error('contractAddress is required')
+    return createRequest({
+      fetcher: this.fetcher,
+      url: `${this.url}/contracts/${platformId}/${contractAddress}/historical`,
+      config: this.config,
+      query: params
+    })
+  }
+
+  /**
+   * Get API key usage information (requires API key)
+   */
+  getKeyInfo () {
+    return createRequest({
+      fetcher: this.fetcher,
+      url: `${this.url}/key/info`,
+      config: this.config
+    })
+  }
+
+  /**
+   * Get recent changelog entry IDs
+   */
+  getChangelogIds () {
+    return createRequest({
+      fetcher: this.fetcher,
+      url: `${this.url}/changelog/ids`,
+      config: this.config
+    })
+  }
 }
 
 const createRequest = (args = {}) => {

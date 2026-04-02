@@ -29,99 +29,63 @@ client.getGlobal().then(console.log).catch(console.error);
 
 Check out the [Coinpaprika API documentation](https://api.coinpaprika.com/) for more information!
 
-## API
+## API Coverage
 
-#### getGlobal
-
-Get global information
-
-##### Examples
-```javascript
-const client = new CoinpaprikaAPI();
-client.getGlobal().then(console.log).catch(console.error);
-```
-
-#### getCoins
-
-Get a list of all cryptocurrencies available on coinpaprika.com.
-
-##### Examples
-
-```javascript
-const client = new CoinpaprikaAPI();
-client.getCoins().then(console.log).catch(console.error);
-```
-
-#### getCoinsOHLCVHistorical
-
-Get the OHLCV historical for a coin
-
-##### Examples
-
-```javascript
+```js
+const CoinpaprikaAPI = require('@coinpaprika/api-nodejs-client')
 const client = new CoinpaprikaAPI()
-client.getCoinsOHLCVHistorical({
-    coinId: "btc-bitcoin",
-    quote: "usd",
-    start: "2020-01-01",
-    end: "2020-01-02" 
-}).then(console.log).catch(console.error)
 ```
 
-
-#### getTicker
-(**DEPRECATED**)
-Get information on all tickers or specifed ticker.
-
-
-##### Parameters
-
--   `args`   (optional, default `{}`)
--   `options` **[Object](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object)** Options for the request
-    -   `options.coinId` **[String](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String)** Coinpaprika ID from `getCoins()` (optional, default ``)
-
-##### Examples
-
-```javascript
-const client = new CoinpaprikaAPI();
-client.getTicker().then(console.log).catch(console.error);
-client.getTicker({coinId: 'btc-bitcoin'}).then(console.log).catch(console.error);
+#### Market Data
+```js
+client.getGlobal()                                    // Global market overview
+client.getCoins()                                     // List all coins
+client.getCoin('btc-bitcoin')                         // Coin details
+client.getAllTickers({ quotes: ['USD', 'BTC'] })      // All tickers
+client.getAllTickers({ coinId: 'btc-bitcoin' })       // Single ticker
+client.getAllTickers({ coinId: 'btc-bitcoin', historical: { start: '2024-01-01' } })  // Historical
 ```
 
-#### getAllTickers
+#### OHLCV
+```js
+client.getCoinsOHLCVLatest('btc-bitcoin')             // Latest full day OHLCV
+client.getCoinsOHLCVToday('btc-bitcoin')              // Today's OHLCV (live)
+client.getCoinsOHLCVHistorical({ coinId: 'btc-bitcoin', start: '2024-01-01' })  // Historical
+```
 
-Get tickers for all coins
+#### Coins
+```js
+client.getCoinTwitter('btc-bitcoin')                  // Twitter timeline
+client.getCoinEvents('btc-bitcoin')                   // Coin events
+client.getCoinExchanges('btc-bitcoin')                // Exchanges listing coin
+client.getCoinMarkets('btc-bitcoin', { quotes: 'USD' })  // Markets for coin
+client.getCoinsMappings()                             // ID mappings (Pro)
+```
 
-##### Parameters
+#### Exchanges
+```js
+client.getExchanges()                                 // List all exchanges
+client.getExchange('binance')                         // Exchange details
+client.getExchangeMarkets('binance', { quotes: 'USD' })  // Markets on exchange
+```
 
--   `params` (optional, default `{}`)
-    -   `coinId` string (optional but *`required` with historical key*)
-    -   `quotes` array of strings (optional)
-    -   `historical` object (optional)
-        - start: string (required)
-        - end: string (optional)
-        - limit: integer (optional)
-        - quote: string (optional)
-        - interval: string (optional) 
- 
-##### Examples
-```javascript
-const client = new CoinpaprikaAPI()
-client.getAllTickers({
-    coinId:'btc-bitcoin',
-    quotes: ['BTC', 'ETH']
-}).then(console.log).catch(console.error)
+#### Contracts
+```js
+client.getPlatforms()                                 // List contract platforms
+client.getContracts('eth-ethereum')                   // Contracts on Ethereum
+client.getTickerByContract('eth-ethereum', '0xdac1...') // Ticker by contract
+client.getHistoricalByContract('eth-ethereum', '0xdac1...', { start: '2024-01-01' })
+```
 
-client.getAllTickers({
-    coinId:'btc-bitcoin',
-    historical: {
-        start: '2018-02-15',
-        end: '2018-02-16',
-        limit: 2000,
-        quote: 'btc',
-        interval: '30m'
-    }
-}).then(console.log).catch(console.error)
+#### Other
+```js
+client.search({ q: 'bitcoin', c: 'currencies', limit: 10 })
+client.priceConverter({ base_currency_id: 'btc-bitcoin', quote_currency_id: 'usd-us-dollars', amount: 1 })
+client.getPeople('vitalik-buterin')                   // Person details
+client.getTags()                                      // List tags
+client.getTag('blockchain-service')                   // Tag details
+client.getKeyInfo()                                   // API key info (requires key)
+client.getChangelogIds()                              // Recent changelog IDs (Pro)
 ```
 
 ## License
