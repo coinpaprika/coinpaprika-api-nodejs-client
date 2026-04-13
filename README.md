@@ -16,7 +16,7 @@ This library provides convenient way to use [Coinpaprika.com API](https://api.co
 npm install @coinpaprika/api-nodejs-client
 ```
 
-Requires Node.js **14 or newer**. On Node 18+ the client uses the built-in `fetch`; on older versions it falls back to `node-fetch`.
+Requires Node.js **18 or newer** (uses the built-in global `fetch`). If you need to support Node 14–17, stay on the `2.x` line.
 
 ## Usage
 
@@ -79,6 +79,8 @@ await client.getKeyInfo();
 
 ### Request cancellation
 
+**Client-wide** (all calls on this client share the signal):
+
 ```js
 const controller = new AbortController();
 const client = new CoinpaprikaAPI({ config: { signal: controller.signal } });
@@ -86,6 +88,20 @@ const client = new CoinpaprikaAPI({ config: { signal: controller.signal } });
 const p = client.getCoins();
 setTimeout(() => controller.abort(), 100);
 try { await p } catch (e) { /* AbortError */ }
+```
+
+**Per-call** via `withSignal(signal)` — returns a new client bound to that signal; the original is untouched:
+
+```js
+const client = new CoinpaprikaAPI();
+
+const controller = new AbortController();
+const p = client.withSignal(controller.signal).getCoins();
+setTimeout(() => controller.abort(), 100);
+try { await p } catch (e) { /* AbortError on the scoped call only */ }
+
+// The parent client keeps working:
+await client.getGlobal();
 ```
 
 ### Retries
@@ -107,7 +123,7 @@ client.getCoin('btc-bitcoin')                         // Coin details
 client.getCoin('btc-bitcoin', { quotes: ['USD', 'BTC'] })  // Coin details with quotes
 ```
 
-> `getTicker` and `getAllTickers` are kept for backwards compatibility but **deprecated**; the upstream `/ticker` endpoint is itself deprecated. Prefer `getCoin`, `getCoinsOHLCVLatest`, and `getCoinsOHLCVHistorical`.
+> `getTicker` and `getAllTickers` were **removed in 3.0.0** (upstream `/ticker` endpoint is deprecated). Use `getCoin`, `getCoinsOHLCVLatest`, and `getCoinsOHLCVHistorical` instead. See the [CHANGELOG](./CHANGELOG.md#300---2026-04-13) for migration snippets.
 
 #### OHLCV
 ```js

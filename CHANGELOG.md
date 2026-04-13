@@ -3,6 +3,42 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-04-13
+
+### Removed (BREAKING)
+- **`getTicker(args)` removed.** Upstream `/ticker` has been deprecated by Coinpaprika for some time; replace with `getCoin(coinId)` or `getCoinsOHLCVLatest(coinId)`.
+- **`getAllTickers(params)` removed.** Replace with the explicit per-endpoint methods: `getCoins()`, `getCoin()`, `getCoinsOHLCVHistorical()`, `getCoinsOHLCVLatest()`.
+- **`node-fetch` dropped as a runtime dependency.** The client uses the built-in global `fetch` unconditionally; the constructor throws at load time if it is not present.
+
+### Changed (BREAKING)
+- **`engines.node` bumped to `>=18`.** Node 14–17 are no longer supported. Stay on `2.x` if you need the older runtimes.
+
+### Added
+- **Per-call cancellation via `client.withSignal(signal)`.** Returns a new client instance that attaches the given `AbortSignal` to every request it makes; the original client is untouched. Use this to scope cancellation to a single call or a small group of calls without constructing a new client end-to-end:
+
+  ```js
+  const controller = new AbortController()
+  const scoped = client.withSignal(controller.signal)
+  const result = scoped.getCoins()
+  controller.abort()
+  ```
+
+### Migration from 2.x
+
+```diff
+- const data = await client.getTicker({ coinId: 'btc-bitcoin' })
++ const data = await client.getCoin('btc-bitcoin')
+
+- const tickers = await client.getAllTickers({ quotes: ['USD','BTC'] })
++ const coins   = await client.getCoins()
++ const market  = await client.getCoinMarkets('btc-bitcoin', { quotes: ['USD','BTC'] })
+
+- const hist = await client.getAllTickers({ coinId: 'btc-bitcoin', historical: { start: '2024-01-01' } })
++ const hist = await client.getCoinsOHLCVHistorical({ coinId: 'btc-bitcoin', start: '2024-01-01' })
+```
+
+Runtime: ensure you're on Node 18 or newer. No `node-fetch` install needed.
+
 ## [2.2.0] - 2026-04-13
 
 ### Added

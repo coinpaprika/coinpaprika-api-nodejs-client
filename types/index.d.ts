@@ -43,16 +43,6 @@ declare namespace CoinpaprikaAPI {
     interval?: string
   }
 
-  interface GetTickerArgs {
-    coinId?: string
-  }
-
-  interface GetAllTickersParams {
-    coinId?: string
-    quotes?: string | string[]
-    historical?: HistoricalParams
-  }
-
   interface OHLCVHistoricalParams {
     coinId: string
     start: string
@@ -95,13 +85,10 @@ declare namespace CoinpaprikaAPI {
 declare class CoinpaprikaAPI {
   constructor (options?: CoinpaprikaAPI.Options)
 
+  /** Return a new client that attaches the given AbortSignal to every request it makes. */
+  withSignal (signal: AbortSignal): CoinpaprikaAPI
+
   getGlobal (): Promise<any>
-
-  /** @deprecated Upstream `/ticker` is deprecated; prefer `getCoin` / `getCoinsOHLCVLatest`. */
-  getTicker (args?: CoinpaprikaAPI.GetTickerArgs): Promise<any>
-
-  /** @deprecated Prefer the explicit endpoints. */
-  getAllTickers (params?: CoinpaprikaAPI.GetAllTickersParams): Promise<any>
 
   getCoins (): Promise<any>
   getCoin (coinId: string, params?: CoinpaprikaAPI.QueryParams): Promise<any>

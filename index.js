@@ -4,9 +4,11 @@ const qs = require('qs')
 
 const BASE_URL = 'https://api.coinpaprika.com'
 
-const defaultFetcher = (typeof globalThis !== 'undefined' && typeof globalThis.fetch === 'function')
-  ? globalThis.fetch.bind(globalThis)
-  : require('node-fetch')
+if (typeof globalThis.fetch !== 'function') {
+  throw new Error('@coinpaprika/api-nodejs-client 3.x requires Node.js 18+ (global fetch). For older runtimes use 2.x.')
+}
+
+const defaultFetcher = globalThis.fetch.bind(globalThis)
 
 class CoinpaprikaAPI {
   /**
@@ -33,69 +35,35 @@ class CoinpaprikaAPI {
   }
 
   /**
-   * Get global information.
+   * Return a new client bound to an AbortSignal. The original client is unchanged.
+   * Use this to scope cancellation to a single call or a small group of calls:
+   *
+   *   const controller = new AbortController()
+   *   await client.withSignal(controller.signal).getCoins()
+   *   controller.abort()
    */
+  withSignal (signal) {
+    const clone = Object.create(Object.getPrototypeOf(this))
+    clone.config = Object.assign({}, this.config, { signal })
+    clone.retry = this.retry
+    clone.fetcher = this.fetcher
+    clone.url = this.url
+    return clone
+  }
+
   getGlobal () {
     return this._request({ path: '/global' })
   }
 
-  /**
-   * Get information on all tickers or a specified ticker.
-   * @deprecated Use `getAllTickers` or `getCoin` / `getCoinsOHLCVLatest` instead. The upstream `/ticker` endpoint is deprecated.
-   * @param {Object=} args { coinId }
-   */
-  getTicker (args = {}) {
-    if (Object.prototype.toString.call(args) !== '[object Object]') {
-      throw new Error('Please pass object as arg.')
-    }
-    const { coinId } = args
-    return this._request({ path: `/ticker${coinId ? `/${coinId}` : ''}` })
-  }
-
-  /**
-   * Get tickers for all coins (or a single coin, optionally historical).
-   * @deprecated Prefer the explicit endpoints (`getCoin`, `getCoinsOHLCVHistorical`, `getCoinsOHLCVLatest`). Retained for back-compat.
-   * @param {Object=} params { coinId, quotes, historical }
-   */
-  getAllTickers (params = {}) {
-    if (Object.prototype.toString.call(params) !== '[object Object]') {
-      throw new Error('Please pass object as arg.')
-    }
-    const { coinId, quotes, historical } = params
-
-    if ((historical && typeof coinId === 'undefined') || (coinId && historical && typeof historical.start === 'undefined')) {
-      throw new Error('required param was not pass, please check CoinpaprikaAPI client usage')
-    }
-
-    const path = `/tickers${coinId ? `/${coinId}` : ''}${historical && coinId ? '/historical' : ''}`
-    const query = {}
-    if (quotes) query.quotes = quotes
-    if (historical && coinId) Object.assign(query, historical)
-
-    return this._request({ path, query })
-  }
-
-  /**
-   * Get a list of all cryptocurrencies available on coinpaprika.com.
-   */
   getCoins () {
     return this._request({ path: '/coins' })
   }
 
-  /**
-   * Get particular coin by coinId.
-   * @param {string} coinId
-   * @param {Object=} params Optional query params forwarded to the API.
-   */
   getCoin (coinId, params = {}) {
     if (!coinId) throw new Error('Can not be called without coinId')
     return this._request({ path: `/coins/${coinId}`, query: params })
   }
 
-  /**
-   * Get historical OHLCV data for a coin.
-   * @param {Object} params - { coinId, start, end?, quote? }
-   */
   getCoinsOHLCVHistorical (params = {}) {
     if (Object.prototype.toString.call(params) !== '[object Object]') {
       throw new Error('Please pass object as arg.')
@@ -111,17 +79,11 @@ class CoinpaprikaAPI {
     return this._request({ path: `/coins/${coinId}/ohlcv/historical`, query })
   }
 
-  /**
-   * Get latest OHLCV data for a coin (last full day).
-   */
   getCoinsOHLCVLatest (coinId, params = {}) {
     if (!coinId) throw new Error('coinId is required')
     return this._request({ path: `/coins/${coinId}/ohlcv/latest`, query: params })
   }
 
-  /**
-   * Get today's OHLCV data for a coin (updates until day close).
-   */
   getCoinsOHLCVToday (coinId, params = {}) {
     if (!coinId) throw new Error('coinId is required')
     return this._request({ path: `/coins/${coinId}/ohlcv/today`, query: params })
@@ -149,7 +111,7 @@ class CoinpaprikaAPI {
 
   /**
    * Get coin ID mappings to other data providers.
-   * @param {Object=} params - Optional filters; see https://api.coinpaprika.com/ for the supported query params.
+   * See https://api.coinpaprika.com/ for supported query params.
    */
   getCoinsMappings (params = {}) {
     return this._request({ path: '/coins/mappings', query: params })

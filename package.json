@@ -1,6 +1,6 @@
 {
   "name": "@coinpaprika/api-nodejs-client",
-  "version": "2.2.0",
+  "version": "3.0.0",
   "description": "This library provides convenient way to use Coinpaprika.com API in NodeJS",
   "license": "MIT",
   "repository": {
@@ -21,7 +21,7 @@
     "./package.json": "./package.json"
   },
   "engines": {
-    "node": ">=14"
+    "node": ">=18"
   },
   "files": [
     "index.js",
@@ -31,7 +31,6 @@
   "scripts": {
     "test": "jest",
     "test:cov": "npm run test -- --coverage",
-    "test:unit": "jest --testPathIgnorePatterns=\"/tests/integration/|/tests/get[A-Z]\"",
     "lint": "standard --fix ./*.js",
     "start": "npm run test",
     "pretest": "npm run lint"
@@ -44,11 +43,10 @@
     "documentation": "^14.0.1",
     "dotenv": "^16.0.3",
     "jest": "^29.5.0",
-    "nock": "^13.5.6",
+    "nock": "^14.0.12",
     "standard": "^17.0.0"
   },
   "dependencies": {
-    "node-fetch": "^2.6.11",
     "qs": "^6.11.1"
   },
   "standard": {

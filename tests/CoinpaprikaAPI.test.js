@@ -16,16 +16,22 @@ describe('CoinpaprikaAPI class', () => {
 
   it('has defined all endpoints consistent to API documentation', () => {
     const methods = [
-      'getGlobal', 'getCoins', 'getCoin', 'getAllTickers', 'getTicker',
+      'getGlobal', 'getCoins', 'getCoin',
       'getCoinsOHLCVHistorical', 'getCoinsOHLCVLatest', 'getCoinsOHLCVToday',
       'getCoinTwitter', 'getCoinEvents', 'getCoinExchanges', 'getCoinMarkets',
       'getCoinsMappings', 'getPeople', 'getTags', 'getTag',
       'getExchanges', 'getExchange', 'getExchangeMarkets',
       'search', 'priceConverter',
       'getPlatforms', 'getContracts', 'getTickerByContract', 'getHistoricalByContract',
-      'getKeyInfo', 'getChangelogIds'
+      'getKeyInfo', 'getChangelogIds',
+      'withSignal'
     ]
     for (const m of methods) expect(typeof client[m]).toBe('function')
+  })
+
+  it('does not expose legacy removed methods', () => {
+    expect(client.getTicker).toBeUndefined()
+    expect(client.getAllTickers).toBeUndefined()
   })
 
   it('exposes default export for ESM interop', () => {
@@ -75,18 +81,9 @@ describe('URL construction', () => {
     expect(calledUrl()).toBe('https://api.coinpaprika.com/v1/global')
   })
 
-  it('getCoin now accepts optional params', () => {
+  it('getCoin accepts optional params', () => {
     client.getCoin('btc-bitcoin', { quotes: ['USD', 'BTC'] })
     expect(calledUrl()).toBe('https://api.coinpaprika.com/v1/coins/btc-bitcoin?quotes=USD%2CBTC')
-  })
-
-  it('legacy getAllTickers still builds the right URL (historical)', () => {
-    client.getAllTickers({ coinId: 'btc-bitcoin', historical: { start: '2024-01-01', end: '2024-01-02', quote: 'usd' } })
-    const url = calledUrl()
-    expect(url.startsWith('https://api.coinpaprika.com/v1/tickers/btc-bitcoin/historical?')).toBe(true)
-    expect(url).toContain('start=2024-01-01')
-    expect(url).toContain('end=2024-01-02')
-    expect(url).toContain('quote=usd')
   })
 
   it('search throws without q', () => {
@@ -118,7 +115,7 @@ describe('apiKey option', () => {
     expect(fetcher.mock.calls[0][1].headers.Authorization).toBeUndefined()
   })
 
-  it('does not override an explicit Authorization header from config', () => {
+  it('apiKey wins over config.headers.Authorization', () => {
     const fetcher = mockFetcher()
     const client = new CoinpaprikaAPI({
       apiKey: 'from-apikey',
@@ -137,6 +134,39 @@ describe('signal / abort support', () => {
     const client = new CoinpaprikaAPI({ config: { signal: controller.signal }, fetcher })
     client.getGlobal()
     expect(fetcher.mock.calls[0][1].signal).toBe(controller.signal)
+  })
+
+  it('withSignal returns a new client with that signal', () => {
+    const controller = new AbortController()
+    const fetcher = mockFetcher()
+    const client = new CoinpaprikaAPI({ fetcher })
+    const scoped = client.withSignal(controller.signal)
+
+    expect(scoped).not.toBe(client)
+    expect(scoped).toBeInstanceOf(CoinpaprikaAPI)
+
+    scoped.getGlobal()
+    expect(fetcher.mock.calls[0][1].signal).toBe(controller.signal)
+  })
+
+  it('withSignal does not mutate the parent client', () => {
+    const controller = new AbortController()
+    const fetcher = mockFetcher()
+    const client = new CoinpaprikaAPI({ fetcher })
+    client.withSignal(controller.signal)
+    client.getGlobal()
+    expect(fetcher.mock.calls[0][1].signal).toBeUndefined()
+  })
+
+  it('withSignal preserves apiKey, retry, and fetcher', () => {
+    const fetcher = mockFetcher()
+    const client = new CoinpaprikaAPI({ fetcher, apiKey: 'k', retry: { attempts: 2, delay: 1 } })
+    const controller = new AbortController()
+    const scoped = client.withSignal(controller.signal)
+    scoped.getKeyInfo()
+    const cfg = fetcher.mock.calls[0][1]
+    expect(cfg.headers.Authorization).toBe('Bearer k')
+    expect(scoped.retry).toEqual({ attempts: 2, delay: 1 })
   })
 })
 

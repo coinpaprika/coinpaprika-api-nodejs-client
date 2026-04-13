@@ -96,14 +96,30 @@ const features = [
     }
   },
   {
-    name: 'AbortSignal cancels in-flight request',
+    name: 'AbortSignal (constructor) cancels request',
     run: async () => {
-      if (typeof AbortController === 'undefined') return { ok: true, detail: 'AbortController not available (skipped)' }
       const controller = new AbortController()
       const p = new CoinpaprikaAPI({ config: { signal: controller.signal } }).getCoins()
       controller.abort()
       try { await p; return { ok: false, detail: 'did not reject' } } catch (e) {
         return { ok: /abort/i.test(e.message) || e.name === 'AbortError', detail: e.name + ': ' + e.message.slice(0, 60) }
+      }
+    }
+  },
+  {
+    name: 'withSignal scopes abort per-call',
+    run: async () => {
+      const parent = new CoinpaprikaAPI()
+      const controller = new AbortController()
+      const scopedP = parent.withSignal(controller.signal).getCoins()
+      controller.abort()
+      try {
+        await scopedP
+        return { ok: false, detail: 'scoped call did not reject' }
+      } catch (e) {
+        // Parent must still work after scoped abort.
+        const g = await parent.getGlobal()
+        return { ok: !!g && typeof g === 'object', detail: `scoped aborted (${e.name}); parent still works` }
       }
     }
   }
@@ -140,7 +156,7 @@ async function run () {
     }
   }
 
-  console.log('\n--- 2.2.0 features ---')
+  console.log('\n--- 3.0.0 features ---')
   for (const { name, run } of features) {
     try {
       const { ok, detail } = await run()
