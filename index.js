@@ -1,494 +1,274 @@
 'use strict'
 
-const fetch = require('node-fetch')
 const qs = require('qs')
 
 const BASE_URL = 'https://api.coinpaprika.com'
 
+const defaultFetcher = (typeof globalThis !== 'undefined' && typeof globalThis.fetch === 'function')
+  ? globalThis.fetch.bind(globalThis)
+  : require('node-fetch')
+
 class CoinpaprikaAPI {
   /**
-   *
-   * @param {Object=} Options Options for the CoinpaprikaAPI instance
-   *
-   * @param {String=} options.version  Version of API. Defaults to 'v1'
-   * @param {Object=} options.config = Configuration for fetch request
-   *
+   * @param {Object=} options
+   * @param {String=} options.version   API version. Defaults to 'v1'.
+   * @param {Object=} options.config    Base fetch config (headers, signal, etc.) merged into every request.
+   * @param {String=} options.apiKey    Coinpaprika Pro API key. Injected as `Authorization: Bearer <key>` for every request.
+   * @param {Object=} options.retry     Optional retry policy. { attempts = 3, delay = 300 } — exponential backoff on 429/5xx/network errors.
+   * @param {Function=} options.fetcher Override the underlying fetch implementation (useful for tests / custom transports).
    */
-  constructor ({ version = 'v1', config = {} } = {}) {
-    this.config = Object.assign({}, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-        'Accept-Charset': 'utf-8',
-        'Accept-Encoding': 'deflate, gzip'
-      }
-    }, config)
+  constructor ({ version = 'v1', config = {}, apiKey, retry, fetcher } = {}) {
+    const headers = Object.assign({
+      Accept: 'application/json',
+      'Accept-Charset': 'utf-8',
+      'Accept-Encoding': 'deflate, gzip'
+    }, config.headers || {})
 
-    this.fetcher = fetch
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`
+
+    this.config = Object.assign({ method: 'GET' }, config, { headers })
+    this.retry = retry || null
+    this.fetcher = fetcher || defaultFetcher
     this.url = `${BASE_URL}/${version}`
   }
 
   /**
-   * Get global information
-   *
-   * @example
-   * const client = new CoinpaprikaAPI()
-   * client.getGlobal().then(console.log).catch(console.error)
+   * Get global information.
    */
   getGlobal () {
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/global`,
-      config: this.config
-    })
+    return this._request({ path: '/global' })
   }
 
   /**
-   * Get information on all tickers or specifed ticker.
-   * DEPRECATED
-   *
-   * @param {Object=} options Options for the request
-   *
-   * @example
-   * const client = new CoinpaprikaAPI()
-   * client.getTicker({coinId: 3}).then(console.log).catch(console.error)
-   * client.getTicker().then(console.log).catch(console.error)
+   * Get information on all tickers or a specified ticker.
+   * @deprecated Use `getAllTickers` or `getCoin` / `getCoinsOHLCVLatest` instead. The upstream `/ticker` endpoint is deprecated.
+   * @param {Object=} args { coinId }
    */
   getTicker (args = {}) {
     if (Object.prototype.toString.call(args) !== '[object Object]') {
-      throw Error('Please pass object as arg.')
+      throw new Error('Please pass object as arg.')
     }
-
     const { coinId } = args
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/ticker${(coinId) ? `/${coinId}` : ''}`,
-      config: this.config
-    })
+    return this._request({ path: `/ticker${coinId ? `/${coinId}` : ''}` })
   }
 
   /**
-   * Get tickers for all coins
-   * @param {Object=} options for the request consistent to https://api.coinpaprika.com/#tag/Tickers
-   * @param coinId: string
-   * @param quotes: array of strings
-   * @param historical: object
-   * @example
-   * const client = new CoinpaprikaAPI()
-   * client.getAllTickers({
-   *     coinId:'btc-bitcoin',
-   *     quotes: ['BTC', 'ETH']
-   * })
-   * .then(console.log)
-   * .catch(console.error)
-   *
-   * client.getAllTickers({
-   *     coinId:'btc-bitcoin',
-   *     historical: {
-   *         start: '2018-02-15',
-   *         end: '2018-02-16',
-   *         limit: 2000,
-   *         quote: 'btc',
-   *         interval: '30m'
-   *     }
-   * })
-   * .then(console.log)
-   * .catch(console.error)
+   * Get tickers for all coins (or a single coin, optionally historical).
+   * @deprecated Prefer the explicit endpoints (`getCoin`, `getCoinsOHLCVHistorical`, `getCoinsOHLCVLatest`). Retained for back-compat.
+   * @param {Object=} params { coinId, quotes, historical }
    */
   getAllTickers (params = {}) {
     if (Object.prototype.toString.call(params) !== '[object Object]') {
-      throw Error('Please pass object as arg.')
+      throw new Error('Please pass object as arg.')
     }
-
     const { coinId, quotes, historical } = params
 
     if ((historical && typeof coinId === 'undefined') || (coinId && historical && typeof historical.start === 'undefined')) {
-      throw Error('required param was not pass, please check CoinpaprikaAPI client usage')
+      throw new Error('required param was not pass, please check CoinpaprikaAPI client usage')
     }
 
-    const coinIdParam = coinId ? `/${coinId}` : ''
-    const quotesParam = quotes ? `?quotes=${quotes.join(',')}` : ''
-    let historicalParam = ''
-    if (historical && coinId) {
-      historicalParam = ((historicalArgs = {}) => {
-        const { start, end, limit, quote, interval } = historicalArgs
-        const startParam = `start=${start}`
-        const endParam = end ? `&end=${end}` : ''
-        const limitParam = limit ? `&limit=${limit}` : ''
-        const quoteParam = quote ? `&quote=${quote}` : ''
-        const intervalParam = interval ? `&interval=${interval}` : ''
+    const path = `/tickers${coinId ? `/${coinId}` : ''}${historical && coinId ? '/historical' : ''}`
+    const query = {}
+    if (quotes) query.quotes = quotes
+    if (historical && coinId) Object.assign(query, historical)
 
-        return `/historical?${startParam}${endParam}${limitParam}${quoteParam}${intervalParam}`
-      })(historical)
-    }
-
-    const query = `${coinIdParam}${historicalParam}${quotesParam}`
-
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/tickers/${query}`,
-      config: this.config
-    })
+    return this._request({ path, query })
   }
 
   /**
    * Get a list of all cryptocurrencies available on coinpaprika.com.
-   *
-   * @example
-   * const client = new CoinpaprikaAPI()
-   * client.getCoins().then(console.log).catch(console.error)
    */
   getCoins () {
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/coins`,
-      config: this.config
-    })
+    return this._request({ path: '/coins' })
   }
 
   /**
-   * Get particular coin by coinId available on coinpaprika.com.
-   *
-   * @example
-   * const client = new CoinpaprikaAPI()
-   * client.getCoin('btc-bitcoin').then(console.log).catch(console.error)
+   * Get particular coin by coinId.
+   * @param {string} coinId
+   * @param {Object=} params Optional query params forwarded to the API.
    */
-  getCoin (coinId) {
+  getCoin (coinId, params = {}) {
     if (!coinId) throw new Error('Can not be called without coinId')
-
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/coins/${coinId}`
-    })
+    return this._request({ path: `/coins/${coinId}`, query: params })
   }
 
   /**
-   * Get the coin OHLCV historical
-   * @example
-   * const client = new CoinpaprikaAPI()
-   * client.getCoinsOHLCVHistorical({
-   * coinId: "btc-bitcoin",
-   * quote: "usd",
-   * start: "2020-01-01",
-   * end: "2020-01-02"
-   * }).then(console.log).catch(console.error)
+   * Get historical OHLCV data for a coin.
+   * @param {Object} params - { coinId, start, end?, quote? }
    */
   getCoinsOHLCVHistorical (params = {}) {
     if (Object.prototype.toString.call(params) !== '[object Object]') {
-      throw Error('Please pass object as arg.')
+      throw new Error('Please pass object as arg.')
     }
-
-    const { coinId, quote, start, end } = params
-
+    const { coinId, start } = params
     if (typeof coinId !== 'string' || typeof start !== 'string' || !coinId || !start) {
-      throw Error('required param was not pass, please check CoinpaprikaAPI client usage')
+      throw new Error('required param was not pass, please check CoinpaprikaAPI client usage')
     }
-
-    const reqparams = {
-      coinId,
-      start: `?start=${start}`,
-      quote: quote ? `&quote=${quote}` : '',
-      end: end ? `&end=${end}` : ''
-    }
-    const query = `${reqparams.start}${reqparams.end}${reqparams.quote}`
-
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/coins/${reqparams.coinId}/ohlcv/historical${query}`,
-      config: this.config
-    })
+    const query = {}
+    if (params.start) query.start = params.start
+    if (params.end) query.end = params.end
+    if (params.quote) query.quote = params.quote
+    return this._request({ path: `/coins/${coinId}/ohlcv/historical`, query })
   }
 
   /**
-   * Get latest OHLCV data for a coin (last full day)
-   * @param {string} coinId
-   * @param {Object=} params - Optional: { quote }
+   * Get latest OHLCV data for a coin (last full day).
    */
   getCoinsOHLCVLatest (coinId, params = {}) {
     if (!coinId) throw new Error('coinId is required')
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/coins/${coinId}/ohlcv/latest`,
-      config: this.config,
-      query: params
-    })
+    return this._request({ path: `/coins/${coinId}/ohlcv/latest`, query: params })
   }
 
   /**
-   * Get today's OHLCV data for a coin (updates until day close)
-   * @param {string} coinId
-   * @param {Object=} params - Optional: { quote }
+   * Get today's OHLCV data for a coin (updates until day close).
    */
   getCoinsOHLCVToday (coinId, params = {}) {
     if (!coinId) throw new Error('coinId is required')
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/coins/${coinId}/ohlcv/today`,
-      config: this.config,
-      query: params
-    })
+    return this._request({ path: `/coins/${coinId}/ohlcv/today`, query: params })
   }
 
-  /**
-   * Get Twitter timeline for a coin
-   * @param {string} coinId
-   */
   getCoinTwitter (coinId) {
     if (!coinId) throw new Error('coinId is required')
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/coins/${coinId}/twitter`,
-      config: this.config
-    })
+    return this._request({ path: `/coins/${coinId}/twitter` })
   }
 
-  /**
-   * Get events for a coin
-   * @param {string} coinId
-   */
   getCoinEvents (coinId) {
     if (!coinId) throw new Error('coinId is required')
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/coins/${coinId}/events`,
-      config: this.config
-    })
+    return this._request({ path: `/coins/${coinId}/events` })
   }
 
-  /**
-   * Get exchanges where a coin is listed
-   * @param {string} coinId
-   */
   getCoinExchanges (coinId) {
     if (!coinId) throw new Error('coinId is required')
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/coins/${coinId}/exchanges`,
-      config: this.config
-    })
+    return this._request({ path: `/coins/${coinId}/exchanges` })
   }
 
-  /**
-   * Get markets for a coin
-   * @param {string} coinId
-   * @param {Object=} params - Optional: { quotes }
-   */
   getCoinMarkets (coinId, params = {}) {
     if (!coinId) throw new Error('coinId is required')
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/coins/${coinId}/markets`,
-      config: this.config,
-      query: params
-    })
+    return this._request({ path: `/coins/${coinId}/markets`, query: params })
   }
 
   /**
-   * Get coin ID mappings to other data providers (CoinGecko, CMC, etc.)
-   * @param {Object=} params - Optional: { limit }
+   * Get coin ID mappings to other data providers.
+   * @param {Object=} params - Optional filters; see https://api.coinpaprika.com/ for the supported query params.
    */
   getCoinsMappings (params = {}) {
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/coins/mappings`,
-      config: this.config,
-      query: params
-    })
+    return this._request({ path: '/coins/mappings', query: params })
   }
 
-  /**
-   * Get person details by ID
-   * @param {string} personId
-   */
   getPeople (personId) {
     if (!personId) throw new Error('personId is required')
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/people/${personId}`,
-      config: this.config
-    })
+    return this._request({ path: `/people/${personId}` })
   }
 
-  /**
-   * Get all tags
-   * @param {Object=} params - Optional: { additional_fields }
-   */
   getTags (params = {}) {
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/tags`,
-      config: this.config,
-      query: params
-    })
+    return this._request({ path: '/tags', query: params })
   }
 
-  /**
-   * Get tag by ID
-   * @param {string} tagId
-   * @param {Object=} params - Optional: { additional_fields }
-   */
   getTag (tagId, params = {}) {
     if (!tagId) throw new Error('tagId is required')
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/tags/${tagId}`,
-      config: this.config,
-      query: params
-    })
+    return this._request({ path: `/tags/${tagId}`, query: params })
   }
 
-  /**
-   * Get list of exchanges
-   * @param {Object=} params - Optional: { quotes }
-   */
   getExchanges (params = {}) {
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/exchanges`,
-      config: this.config,
-      query: params
-    })
+    return this._request({ path: '/exchanges', query: params })
   }
 
-  /**
-   * Get exchange by ID
-   * @param {string} exchangeId
-   * @param {Object=} params - Optional: { quotes }
-   */
   getExchange (exchangeId, params = {}) {
     if (!exchangeId) throw new Error('exchangeId is required')
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/exchanges/${exchangeId}`,
-      config: this.config,
-      query: params
-    })
+    return this._request({ path: `/exchanges/${exchangeId}`, query: params })
   }
 
-  /**
-   * Get markets on an exchange
-   * @param {string} exchangeId
-   * @param {Object=} params - Optional: { quotes }
-   */
   getExchangeMarkets (exchangeId, params = {}) {
     if (!exchangeId) throw new Error('exchangeId is required')
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/exchanges/${exchangeId}/markets`,
-      config: this.config,
-      query: params
-    })
+    return this._request({ path: `/exchanges/${exchangeId}/markets`, query: params })
   }
 
-  /**
-   * Search for coins, exchanges, people, tags
-   * @param {Object} params - { q, c, modifier, limit }
-   */
   search (params = {}) {
     if (!params.q) throw new Error('q (search query) is required')
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/search`,
-      config: this.config,
-      query: params
-    })
+    return this._request({ path: '/search', query: params })
   }
 
-  /**
-   * Convert between currencies
-   * @param {Object} params - { base_currency_id, quote_currency_id, amount }
-   */
   priceConverter (params = {}) {
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/price-converter`,
-      config: this.config,
-      query: params
-    })
+    return this._request({ path: '/price-converter', query: params })
   }
 
-  /**
-   * Get list of contract platforms (blockchains with smart contract support)
-   */
   getPlatforms () {
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/contracts`,
-      config: this.config
-    })
+    return this._request({ path: '/contracts' })
   }
 
-  /**
-   * Get all contracts/tokens on a platform
-   * @param {string} platformId - e.g., 'eth-ethereum'
-   */
   getContracts (platformId) {
     if (!platformId) throw new Error('platformId is required')
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/contracts/${platformId}`,
-      config: this.config
-    })
+    return this._request({ path: `/contracts/${platformId}` })
   }
 
-  /**
-   * Get ticker data for a token by contract address
-   * @param {string} platformId - e.g., 'eth-ethereum'
-   * @param {string} contractAddress - e.g., '0xdac17f...'
-   */
   getTickerByContract (platformId, contractAddress) {
     if (!platformId) throw new Error('platformId is required')
     if (!contractAddress) throw new Error('contractAddress is required')
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/contracts/${platformId}/${contractAddress}`,
-      config: this.config
-    })
+    return this._request({ path: `/contracts/${platformId}/${contractAddress}` })
   }
 
-  /**
-   * Get historical ticker data by contract address
-   * @param {string} platformId - e.g., 'eth-ethereum'
-   * @param {string} contractAddress
-   * @param {Object=} params - { start, end, limit, quote, interval }
-   */
   getHistoricalByContract (platformId, contractAddress, params = {}) {
     if (!platformId) throw new Error('platformId is required')
     if (!contractAddress) throw new Error('contractAddress is required')
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/contracts/${platformId}/${contractAddress}/historical`,
-      config: this.config,
-      query: params
-    })
+    return this._request({ path: `/contracts/${platformId}/${contractAddress}/historical`, query: params })
   }
 
-  /**
-   * Get API key usage information (requires API key)
-   */
   getKeyInfo () {
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/key/info`,
-      config: this.config
-    })
+    return this._request({ path: '/key/info' })
   }
 
-  /**
-   * Get recent changelog entry IDs
-   */
   getChangelogIds () {
-    return createRequest({
+    return this._request({ path: '/changelog/ids' })
+  }
+
+  _request ({ path, query }) {
+    return executeRequest({
       fetcher: this.fetcher,
-      url: `${this.url}/changelog/ids`,
-      config: this.config
+      url: `${this.url}${path}`,
+      config: this.config,
+      query,
+      retry: this.retry
     })
   }
 }
 
-const createRequest = (args = {}) => {
-  const { url, config, query, fetcher } = args
-  return fetcher(`${url}${query ? `?${qs.stringify(query)}` : ''}`, config).then(res => res.json())
+const RETRY_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504])
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const buildUrl = (url, query) => {
+  if (!query) return url
+  const normalized = Object.fromEntries(
+    Object.entries(query).map(([k, v]) => [k, Array.isArray(v) ? v.join(',') : v])
+  )
+  const qstr = qs.stringify(normalized)
+  return qstr ? `${url}?${qstr}` : url
+}
+
+const executeRequest = async ({ fetcher, url, config, query, retry }) => {
+  const finalUrl = buildUrl(url, query)
+  const attempts = Math.max(1, (retry && retry.attempts) || 1)
+  const baseDelay = (retry && retry.delay) || 300
+
+  let lastError
+
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const res = await fetcher(finalUrl, config)
+      if (res && typeof res.status === 'number' && RETRY_STATUSES.has(res.status) && attempt < attempts) {
+        await sleep(baseDelay * Math.pow(2, attempt - 1))
+        continue
+      }
+      return res.json()
+    } catch (err) {
+      lastError = err
+      if (attempt >= attempts) throw err
+      await sleep(baseDelay * Math.pow(2, attempt - 1))
+    }
+  }
+
+  throw lastError
 }
 
 module.exports = CoinpaprikaAPI
+module.exports.default = CoinpaprikaAPI
