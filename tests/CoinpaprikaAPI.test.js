@@ -101,11 +101,11 @@ describe('URL construction', () => {
 })
 
 describe('apiKey option', () => {
-  it('injects Authorization: Bearer header on every request', () => {
+  it('sends Authorization: <key> (no Bearer prefix) per Coinpaprika docs', () => {
     const fetcher = mockFetcher()
     const client = new CoinpaprikaAPI({ apiKey: 'test-key-123', fetcher })
     client.getKeyInfo()
-    expect(fetcher.mock.calls[0][1].headers.Authorization).toBe('Bearer test-key-123')
+    expect(fetcher.mock.calls[0][1].headers.Authorization).toBe('test-key-123')
   })
 
   it('omits Authorization when no apiKey', () => {
@@ -123,7 +123,54 @@ describe('apiKey option', () => {
       fetcher
     })
     client.getGlobal()
-    expect(fetcher.mock.calls[0][1].headers.Authorization).toBe('Bearer from-apikey')
+    expect(fetcher.mock.calls[0][1].headers.Authorization).toBe('from-apikey')
+  })
+})
+
+describe('baseUrl / pro option', () => {
+  it('defaults to api.coinpaprika.com', () => {
+    const fetcher = mockFetcher()
+    new CoinpaprikaAPI({ fetcher }).getGlobal()
+    expect(fetcher.mock.calls[0][0]).toBe('https://api.coinpaprika.com/v1/global')
+  })
+
+  it('pro: true switches to api-pro.coinpaprika.com', () => {
+    const fetcher = mockFetcher()
+    new CoinpaprikaAPI({ pro: true, fetcher }).getGlobal()
+    expect(fetcher.mock.calls[0][0]).toBe('https://api-pro.coinpaprika.com/v1/global')
+  })
+
+  it('explicit baseUrl overrides everything', () => {
+    const fetcher = mockFetcher()
+    new CoinpaprikaAPI({ baseUrl: 'https://proxy.example.com', fetcher }).getGlobal()
+    expect(fetcher.mock.calls[0][0]).toBe('https://proxy.example.com/v1/global')
+  })
+})
+
+describe('getChangelogIds pagination', () => {
+  it('passes page param', () => {
+    const fetcher = mockFetcher()
+    new CoinpaprikaAPI({ fetcher }).getChangelogIds({ page: 3 })
+    expect(fetcher.mock.calls[0][0]).toBe('https://api.coinpaprika.com/v1/changelog/ids?page=3')
+  })
+
+  it('works without page (default)', () => {
+    const fetcher = mockFetcher()
+    new CoinpaprikaAPI({ fetcher }).getChangelogIds()
+    expect(fetcher.mock.calls[0][0]).toBe('https://api.coinpaprika.com/v1/changelog/ids')
+  })
+})
+
+describe('getCoinsMappings typed params', () => {
+  it('forwards provider-id query params', () => {
+    const fetcher = mockFetcher()
+    new CoinpaprikaAPI({ fetcher }).getCoinsMappings({
+      coinpaprika: 'btc-bitcoin',
+      coingecko: 'bitcoin'
+    })
+    const url = fetcher.mock.calls[0][0]
+    expect(url).toContain('coinpaprika=btc-bitcoin')
+    expect(url).toContain('coingecko=bitcoin')
   })
 })
 
@@ -165,7 +212,7 @@ describe('signal / abort support', () => {
     const scoped = client.withSignal(controller.signal)
     scoped.getKeyInfo()
     const cfg = fetcher.mock.calls[0][1]
-    expect(cfg.headers.Authorization).toBe('Bearer k')
+    expect(cfg.headers.Authorization).toBe('k')
     expect(scoped.retry).toEqual({ attempts: 2, delay: 1 })
   })
 })

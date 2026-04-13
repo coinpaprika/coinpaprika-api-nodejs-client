@@ -25,9 +25,13 @@ declare namespace CoinpaprikaAPI {
   interface Options {
     /** API version path segment. Defaults to 'v1'. */
     version?: string
+    /** Base URL. Defaults to 'https://api.coinpaprika.com'. Set to 'https://api-pro.coinpaprika.com' for Pro plans, or use `pro: true`. */
+    baseUrl?: string
+    /** Shortcut for baseUrl = 'https://api-pro.coinpaprika.com'. */
+    pro?: boolean
     /** Base fetch config merged into every request (headers, signal, agent, ...). */
     config?: Record<string, any>
-    /** Coinpaprika Pro API key. Injected as `Authorization: Bearer <key>`. */
+    /** Coinpaprika API key. Sent as `Authorization: <key>` (matches Coinpaprika docs — no Bearer prefix). */
     apiKey?: string
     /** Opt-in retry policy; retries on 408/425/429/5xx and network errors. */
     retry?: RetryOptions
@@ -58,7 +62,20 @@ declare namespace CoinpaprikaAPI {
     quotes?: string | string[]
   }
 
-  interface MappingsParams extends QueryParams {}
+  /** Query params for `getCoinsMappings` — pass any subset of other-provider IDs to map. */
+  interface MappingsParams {
+    coinpaprika?: string
+    coinmarketcap?: string
+    coingecko?: string
+    cryptocompare?: string
+    isin?: string
+    dti?: string
+  }
+
+  interface ChangelogIdsParams {
+    /** 1-based page number; 100 records per page. */
+    page?: number
+  }
 
   interface TagsParams {
     additional_fields?: string
@@ -121,7 +138,7 @@ declare class CoinpaprikaAPI {
   getHistoricalByContract (platformId: string, contractAddress: string, params?: CoinpaprikaAPI.HistoricalParams): Promise<any>
 
   getKeyInfo (): Promise<any>
-  getChangelogIds (): Promise<any>
+  getChangelogIds (params?: CoinpaprikaAPI.ChangelogIdsParams): Promise<any>
 }
 
 export = CoinpaprikaAPI

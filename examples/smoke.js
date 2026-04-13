@@ -34,7 +34,7 @@ const positive = [
   ['priceConverter', () => client.priceConverter({ base_currency_id: 'btc-bitcoin', quote_currency_id: 'usd-us-dollars', amount: 1 })],
   ['getTags', () => client.getTags()],
   ['getTag', () => client.getTag('blockchain-service')],
-  ['getPeople', () => client.getPeople('vitalik-buterin')]
+  ['getPeople', () => client.getPeople('satoshi-kobayashi')]
 ]
 
 const negative = [
@@ -65,7 +65,7 @@ const negative = [
 
 const features = [
   {
-    name: 'apiKey injects Authorization header',
+    name: 'apiKey injects raw Authorization header',
     run: async () => {
       let captured = null
       const probe = new CoinpaprikaAPI({
@@ -76,7 +76,37 @@ const features = [
         }
       })
       await probe.getKeyInfo()
-      return { ok: captured && captured.headers.Authorization === 'Bearer dummy-key-for-inspection', detail: captured && captured.headers.Authorization }
+      return { ok: captured && captured.headers.Authorization === 'dummy-key-for-inspection', detail: captured && captured.headers.Authorization }
+    }
+  },
+  {
+    name: 'pro: true routes to api-pro host',
+    run: async () => {
+      let capturedUrl = null
+      const probe = new CoinpaprikaAPI({
+        pro: true,
+        apiKey: 'k',
+        fetcher: (url) => {
+          capturedUrl = url
+          return Promise.resolve({ status: 200, json: () => Promise.resolve({}) })
+        }
+      })
+      await probe.getKeyInfo()
+      return { ok: capturedUrl === 'https://api-pro.coinpaprika.com/v1/key/info', detail: capturedUrl }
+    }
+  },
+  {
+    name: 'getChangelogIds forwards page param',
+    run: async () => {
+      let capturedUrl = null
+      const probe = new CoinpaprikaAPI({
+        fetcher: (url) => {
+          capturedUrl = url
+          return Promise.resolve({ status: 200, json: () => Promise.resolve({}) })
+        }
+      })
+      await probe.getChangelogIds({ page: 2 })
+      return { ok: capturedUrl === 'https://api.coinpaprika.com/v1/changelog/ids?page=2', detail: capturedUrl }
     }
   },
   {
@@ -127,6 +157,8 @@ const features = [
 
 const describeShape = (v) => Array.isArray(v) ? `array(${v.length})` : (v && typeof v === 'object' ? `object(${Object.keys(v).length} keys)` : typeof v)
 
+const isApiError = (v) => v && typeof v === 'object' && !Array.isArray(v) && typeof v.error === 'string'
+
 async function run () {
   let pass = 0
   let fail = 0
@@ -136,8 +168,13 @@ async function run () {
     const t0 = Date.now()
     try {
       const res = await fn()
-      console.log(`  OK   ${name.padEnd(28)} ${String(Date.now() - t0).padStart(5)}ms  -> ${describeShape(res)}`)
-      pass++
+      if (isApiError(res)) {
+        console.log(`  FAIL ${name.padEnd(28)} ${String(Date.now() - t0).padStart(5)}ms  -> API error: ${res.error.slice(0, 80)}`)
+        fail++
+      } else {
+        console.log(`  OK   ${name.padEnd(28)} ${String(Date.now() - t0).padStart(5)}ms  -> ${describeShape(res)}`)
+        pass++
+      }
     } catch (e) {
       console.log(`  FAIL ${name.padEnd(28)} ${String(Date.now() - t0).padStart(5)}ms  -> ${e.message}`)
       fail++

@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [3.0.0] - 2026-04-13
 
+### Fixed (per Coinpaprika API docs audit)
+- **Authorization header format** — now sends `Authorization: <key>` (matches Coinpaprika's docs) instead of `Authorization: Bearer <key>`. The `Bearer` variant was rejected by Pro endpoints.
+- **`getChangelogIds(params)`** now accepts `{ page }` per the [docs](https://docs.coinpaprika.com/api-reference/changelog/get-id-changelog-for-all-coins) (previously took no arguments — paging through the changelog was impossible).
+- **`getCoinsMappings` typings** refined to the six documented provider IDs (`coinpaprika`, `coinmarketcap`, `coingecko`, `cryptocompare`, `isin`, `dti`) per the [docs](https://docs.coinpaprika.com/api-reference/coins/api-id-mappings).
+
+### Added
+- **`pro: true` constructor option** — convenience shortcut for `baseUrl = 'https://api-pro.coinpaprika.com'`, which the [API docs](https://docs.coinpaprika.com/api-reference/key/get-api-key-info) specify for paid plans.
+- **`baseUrl` constructor option** — full override of the base URL (wins over `pro`). Useful for self-hosted proxies, test fixtures, or staging endpoints.
+
 ### Removed (BREAKING)
 - **`getTicker(args)` removed.** Upstream `/ticker` has been deprecated by Coinpaprika for some time; replace with `getCoin(coinId)` or `getCoinsOHLCVLatest(coinId)`.
 - **`getAllTickers(params)` removed.** Replace with the explicit per-endpoint methods: `getCoins()`, `getCoin()`, `getCoinsOHLCVHistorical()`, `getCoinsOHLCVLatest()`.

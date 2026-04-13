@@ -3,6 +3,7 @@
 const qs = require('qs')
 
 const BASE_URL = 'https://api.coinpaprika.com'
+const PRO_BASE_URL = 'https://api-pro.coinpaprika.com'
 
 if (typeof globalThis.fetch !== 'function') {
   throw new Error('@coinpaprika/api-nodejs-client 3.x requires Node.js 18+ (global fetch). For older runtimes use 2.x.')
@@ -14,24 +15,27 @@ class CoinpaprikaAPI {
   /**
    * @param {Object=} options
    * @param {String=} options.version   API version. Defaults to 'v1'.
+   * @param {String=} options.baseUrl   Base URL. Defaults to 'https://api.coinpaprika.com'. Set to 'https://api-pro.coinpaprika.com' for Pro plans, or pass `pro: true` below.
+   * @param {Boolean=} options.pro      Shortcut: use the Pro base URL.
    * @param {Object=} options.config    Base fetch config (headers, signal, etc.) merged into every request.
-   * @param {String=} options.apiKey    Coinpaprika Pro API key. Injected as `Authorization: Bearer <key>` for every request.
+   * @param {String=} options.apiKey    Coinpaprika API key. Sent as `Authorization: <key>` (matches the Coinpaprika docs — no "Bearer" prefix).
    * @param {Object=} options.retry     Optional retry policy. { attempts = 3, delay = 300 } — exponential backoff on 429/5xx/network errors.
    * @param {Function=} options.fetcher Override the underlying fetch implementation (useful for tests / custom transports).
    */
-  constructor ({ version = 'v1', config = {}, apiKey, retry, fetcher } = {}) {
+  constructor ({ version = 'v1', baseUrl, pro = false, config = {}, apiKey, retry, fetcher } = {}) {
     const headers = Object.assign({
       Accept: 'application/json',
       'Accept-Charset': 'utf-8',
       'Accept-Encoding': 'deflate, gzip'
     }, config.headers || {})
 
-    if (apiKey) headers.Authorization = `Bearer ${apiKey}`
+    if (apiKey) headers.Authorization = apiKey
 
     this.config = Object.assign({ method: 'GET' }, config, { headers })
     this.retry = retry || null
     this.fetcher = fetcher || defaultFetcher
-    this.url = `${BASE_URL}/${version}`
+    const host = baseUrl || (pro ? PRO_BASE_URL : BASE_URL)
+    this.url = `${host}/${version}`
   }
 
   /**
@@ -179,8 +183,12 @@ class CoinpaprikaAPI {
     return this._request({ path: '/key/info' })
   }
 
-  getChangelogIds () {
-    return this._request({ path: '/changelog/ids' })
+  /**
+   * Get ID changelog for all coins.
+   * @param {Object=} params - Optional: { page } (default 1; 100 records per page).
+   */
+  getChangelogIds (params = {}) {
+    return this._request({ path: '/changelog/ids', query: params })
   }
 
   _request ({ path, query }) {

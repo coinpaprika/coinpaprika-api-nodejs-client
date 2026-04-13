@@ -58,7 +58,9 @@ Check out the [Coinpaprika API documentation](https://api.coinpaprika.com/) for 
 ```js
 const client = new CoinpaprikaAPI({
   version: 'v1',                         // API version (default 'v1')
-  apiKey: process.env.COINPAPRIKA_KEY,   // Coinpaprika Pro key → Authorization: Bearer <key>
+  pro: true,                             // Use Pro host (api-pro.coinpaprika.com). Default false.
+  baseUrl: 'https://api.coinpaprika.com',// Override entirely (wins over `pro`)
+  apiKey: process.env.COINPAPRIKA_KEY,   // Sent as `Authorization: <key>` per Coinpaprika docs (no Bearer prefix)
   retry: { attempts: 3, delay: 300 },    // Opt-in retry on 408/425/429/5xx & network errors (exponential backoff)
   config: {                              // Passed straight to fetch(url, config)
     headers: { 'User-Agent': 'my-app/1.0' },
@@ -70,10 +72,13 @@ const client = new CoinpaprikaAPI({
 
 ### Pro API key
 
-Pro-tier endpoints (`getCoinsMappings`, `getChangelogIds`, `getKeyInfo`, and some fields on the public endpoints) require an API key. Pass it to the constructor and it will be injected as `Authorization: Bearer <key>` on every request:
+Pro-tier endpoints (`getCoinsMappings`, `getChangelogIds`, `getKeyInfo`, and some fields on public endpoints) require an API key **and** the Pro host (`https://api-pro.coinpaprika.com`). The client sends the key exactly as documented — `Authorization: <key>` (no `Bearer` prefix).
 
 ```js
-const client = new CoinpaprikaAPI({ apiKey: 'your-pro-key' });
+const client = new CoinpaprikaAPI({
+  pro: true,
+  apiKey: process.env.COINPAPRIKA_KEY
+});
 await client.getKeyInfo();
 ```
 
@@ -160,7 +165,7 @@ client.getHistoricalByContract('eth-ethereum', '0xdac1...', { start: '2024-01-01
 ```js
 client.search({ q: 'bitcoin', c: 'currencies', limit: 10 })
 client.priceConverter({ base_currency_id: 'btc-bitcoin', quote_currency_id: 'usd-us-dollars', amount: 1 })
-client.getPeople('vitalik-buterin')                   // Person details
+client.getPeople('satoshi-kobayashi')                 // Person details
 client.getTags()                                      // List tags
 client.getTag('blockchain-service')                   // Tag details
 client.getKeyInfo()                                   // API key info (requires key)

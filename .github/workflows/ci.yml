@@ -21,4 +21,7 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run lint
-      - run: npx jest
+      # Exclude the legacy live-API tests — they call api.coinpaprika.com directly
+      # and are flaky under the shared public rate limit (60 req/h). They're kept
+      # in-repo as a canary runnable locally (`npx jest tests/getGobal.test.js` etc.).
+      - run: npx jest --testPathIgnorePatterns="/tests/getCoin\.test\.js|/tests/getCoins\.test\.js|/tests/getGobal\.test\.js|/tests/getCoinsOHLCVHistorical\.test\.js"

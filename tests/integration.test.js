@@ -33,13 +33,22 @@ describe('integration (nock)', () => {
     expect(res).toEqual([{ exchange_id: 'binance' }])
   })
 
-  it('apiKey sends Authorization: Bearer', async () => {
-    nock(HOST, { reqheaders: { Authorization: 'Bearer secret-abc' } })
+  it('apiKey sends Authorization: <key> (no Bearer)', async () => {
+    nock(HOST, { reqheaders: { Authorization: 'secret-abc' } })
       .get('/v1/key/info')
       .reply(200, { plan: 'pro' })
     const client = new CoinpaprikaAPI({ apiKey: 'secret-abc' })
     const res = await client.getKeyInfo()
     expect(res).toEqual({ plan: 'pro' })
+  })
+
+  it('pro: true routes to api-pro.coinpaprika.com', async () => {
+    nock('https://api-pro.coinpaprika.com', { reqheaders: { Authorization: 'k' } })
+      .get('/v1/key/info')
+      .reply(200, { host: 'pro' })
+    const client = new CoinpaprikaAPI({ pro: true, apiKey: 'k' })
+    const res = await client.getKeyInfo()
+    expect(res).toEqual({ host: 'pro' })
   })
 
   it('retry: recovers from 503 when retry policy is enabled', async () => {
