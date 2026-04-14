@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['18', '20', '22', '24']
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint
+      # Exclude the legacy live-API tests — they call api.coinpaprika.com directly
+      # and are flaky under the shared public rate limit (60 req/h). They're kept
+      # in-repo as a canary runnable locally (`npx jest tests/getGobal.test.js` etc.).
+      - run: npx jest --testPathIgnorePatterns="/tests/getCoin\.test\.js|/tests/getCoins\.test\.js|/tests/getGobal\.test\.js|/tests/getCoinsOHLCVHistorical\.test\.js"

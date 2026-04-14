@@ -9,7 +9,7 @@ describe('getCoins', () => {
   })
 
   it('returns Promise if async/await not used', () => {
-    const response = client.getAllTickers()
+    const response = client.getCoins()
     expect(response instanceof Promise).toBe(true)
   })
 

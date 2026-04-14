@@ -16,18 +16,102 @@ This library provides convenient way to use [Coinpaprika.com API](https://api.co
 npm install @coinpaprika/api-nodejs-client
 ```
 
+Requires Node.js **18 or newer** (uses the built-in global `fetch`). If you need to support Node 14–17, stay on the `2.x` line.
+
 ## Usage
+
+### CommonJS
 
 ```js
 const CoinpaprikaAPI = require('@coinpaprika/api-nodejs-client');
 
 const client = new CoinpaprikaAPI();
 
-client.getTicker().then(console.log).catch(console.error);
 client.getGlobal().then(console.log).catch(console.error);
+client.getCoin('btc-bitcoin').then(console.log).catch(console.error);
+```
+
+### ESM
+
+```js
+import CoinpaprikaAPI from '@coinpaprika/api-nodejs-client';
+
+const client = new CoinpaprikaAPI();
+const data = await client.getGlobal();
+```
+
+### TypeScript
+
+Type declarations ship with the package — no `@types` install needed.
+
+```ts
+import CoinpaprikaAPI from '@coinpaprika/api-nodejs-client';
+
+const client = new CoinpaprikaAPI({ apiKey: process.env.COINPAPRIKA_KEY });
+const markets = await client.getCoinMarkets('btc-bitcoin', { quotes: ['USD', 'BTC'] });
 ```
 
 Check out the [Coinpaprika API documentation](https://api.coinpaprika.com/) for more information!
+
+## Configuration
+
+```js
+const client = new CoinpaprikaAPI({
+  version: 'v1',                         // API version (default 'v1')
+  pro: true,                             // Use Pro host (api-pro.coinpaprika.com). Default false.
+  baseUrl: 'https://api.coinpaprika.com',// Override entirely (wins over `pro`)
+  apiKey: process.env.COINPAPRIKA_KEY,   // Sent as `Authorization: <key>` per Coinpaprika docs (no Bearer prefix)
+  retry: { attempts: 3, delay: 300 },    // Opt-in retry on 408/425/429/5xx & network errors (exponential backoff)
+  config: {                              // Passed straight to fetch(url, config)
+    headers: { 'User-Agent': 'my-app/1.0' },
+    signal: controller.signal            // AbortSignal for cancellation (see below)
+  },
+  fetcher: customFetch                   // Optional: override the fetch implementation
+});
+```
+
+### Pro API key
+
+Pro-tier endpoints (`getCoinsMappings`, `getChangelogIds`, `getKeyInfo`, and some fields on public endpoints) require an API key **and** the Pro host (`https://api-pro.coinpaprika.com`). The client sends the key exactly as documented — `Authorization: <key>` (no `Bearer` prefix).
+
+```js
+const client = new CoinpaprikaAPI({
+  pro: true,
+  apiKey: process.env.COINPAPRIKA_KEY
+});
+await client.getKeyInfo();
+```
+
+### Request cancellation
+
+**Client-wide** (all calls on this client share the signal):
+
+```js
+const controller = new AbortController();
+const client = new CoinpaprikaAPI({ config: { signal: controller.signal } });
+
+const p = client.getCoins();
+setTimeout(() => controller.abort(), 100);
+try { await p } catch (e) { /* AbortError */ }
+```
+
+**Per-call** via `withSignal(signal)` — returns a new client bound to that signal; the original is untouched:
+
+```js
+const client = new CoinpaprikaAPI();
+
+const controller = new AbortController();
+const p = client.withSignal(controller.signal).getCoins();
+setTimeout(() => controller.abort(), 100);
+try { await p } catch (e) { /* AbortError on the scoped call only */ }
+
+// The parent client keeps working:
+await client.getGlobal();
+```
+
+### Retries
+
+Opt in via `retry`. Retries only on transient failures (408, 425, 429, 500–504, network errors); 2xx/4xx (besides the above) are returned as-is. Exponential backoff: `delay * 2^(attempt-1)`.
 
 ## API Coverage
 
@@ -41,10 +125,10 @@ const client = new CoinpaprikaAPI()
 client.getGlobal()                                    // Global market overview
 client.getCoins()                                     // List all coins
 client.getCoin('btc-bitcoin')                         // Coin details
-client.getAllTickers({ quotes: ['USD', 'BTC'] })      // All tickers
-client.getAllTickers({ coinId: 'btc-bitcoin' })       // Single ticker
-client.getAllTickers({ coinId: 'btc-bitcoin', historical: { start: '2024-01-01' } })  // Historical
+client.getCoin('btc-bitcoin', { quotes: ['USD', 'BTC'] })  // Coin details with quotes
 ```
+
+> `getTicker` and `getAllTickers` were **removed in 3.0.0** (upstream `/ticker` endpoint is deprecated). Use `getCoin`, `getCoinsOHLCVLatest`, and `getCoinsOHLCVHistorical` instead. See the [CHANGELOG](./CHANGELOG.md#300---2026-04-13) for migration snippets.
 
 #### OHLCV
 ```js
@@ -58,7 +142,7 @@ client.getCoinsOHLCVHistorical({ coinId: 'btc-bitcoin', start: '2024-01-01' })  
 client.getCoinTwitter('btc-bitcoin')                  // Twitter timeline
 client.getCoinEvents('btc-bitcoin')                   // Coin events
 client.getCoinExchanges('btc-bitcoin')                // Exchanges listing coin
-client.getCoinMarkets('btc-bitcoin', { quotes: 'USD' })  // Markets for coin
+client.getCoinMarkets('btc-bitcoin', { quotes: ['USD', 'BTC'] })  // Markets for coin (array or CSV string)
 client.getCoinsMappings()                             // ID mappings (Pro)
 ```
 
@@ -66,7 +150,7 @@ client.getCoinsMappings()                             // ID mappings (Pro)
 ```js
 client.getExchanges()                                 // List all exchanges
 client.getExchange('binance')                         // Exchange details
-client.getExchangeMarkets('binance', { quotes: 'USD' })  // Markets on exchange
+client.getExchangeMarkets('binance', { quotes: ['USD', 'BTC'] })  // Markets on exchange (array or CSV string)
 ```
 
 #### Contracts
@@ -81,12 +165,21 @@ client.getHistoricalByContract('eth-ethereum', '0xdac1...', { start: '2024-01-01
 ```js
 client.search({ q: 'bitcoin', c: 'currencies', limit: 10 })
 client.priceConverter({ base_currency_id: 'btc-bitcoin', quote_currency_id: 'usd-us-dollars', amount: 1 })
-client.getPeople('vitalik-buterin')                   // Person details
+client.getPeople('satoshi-kobayashi')                 // Person details
 client.getTags()                                      // List tags
 client.getTag('blockchain-service')                   // Tag details
 client.getKeyInfo()                                   // API key info (requires key)
 client.getChangelogIds()                              // Recent changelog IDs (Pro)
 ```
+
+## Notes on query params
+
+- Any param that accepts multiple values (e.g. `quotes`, `c` for `search`) can be passed as either a CSV string or an array; arrays are joined with commas automatically before being sent to the API.
+- Required params are validated synchronously and throw a descriptive `Error` before any network call (e.g. `client.search({})` throws `"q (search query) is required"`).
+
+## Changelog
+
+See [CHANGELOG.md](./CHANGELOG.md) for release notes.
 
 ## License
 
