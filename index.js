@@ -1,208 +1,244 @@
 'use strict'
 
-const fetch = require('node-fetch')
 const qs = require('qs')
 
 const BASE_URL = 'https://api.coinpaprika.com'
+const PRO_BASE_URL = 'https://api-pro.coinpaprika.com'
+
+if (typeof globalThis.fetch !== 'function') {
+  throw new Error('@coinpaprika/api-nodejs-client 3.x requires Node.js 18+ (global fetch). For older runtimes use 2.x.')
+}
+
+const defaultFetcher = globalThis.fetch.bind(globalThis)
 
 class CoinpaprikaAPI {
   /**
-   *
-   * @param {Object=} Options Options for the CoinpaprikaAPI instance
-   *
-   * @param {String=} options.version  Version of API. Defaults to 'v1'
-   * @param {Object=} options.config = Configuration for fetch request
-   *
+   * @param {Object=} options
+   * @param {String=} options.version   API version. Defaults to 'v1'.
+   * @param {String=} options.baseUrl   Base URL. Defaults to 'https://api.coinpaprika.com'. Set to 'https://api-pro.coinpaprika.com' for Pro plans, or pass `pro: true` below.
+   * @param {Boolean=} options.pro      Shortcut: use the Pro base URL.
+   * @param {Object=} options.config    Base fetch config (headers, signal, etc.) merged into every request.
+   * @param {String=} options.apiKey    Coinpaprika API key. Sent as `Authorization: <key>` (matches the Coinpaprika docs — no "Bearer" prefix).
+   * @param {Object=} options.retry     Optional retry policy. { attempts = 3, delay = 300 } — exponential backoff on 429/5xx/network errors.
+   * @param {Function=} options.fetcher Override the underlying fetch implementation (useful for tests / custom transports).
    */
-  constructor ({ version = 'v1', config = {} } = {}) {
-    this.config = Object.assign({}, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-        'Accept-Charset': 'utf-8',
-        'Accept-Encoding': 'deflate, gzip'
-      }
-    }, config)
+  constructor ({ version = 'v1', baseUrl, pro = false, config = {}, apiKey, retry, fetcher } = {}) {
+    const headers = Object.assign({
+      Accept: 'application/json',
+      'Accept-Charset': 'utf-8',
+      'Accept-Encoding': 'deflate, gzip'
+    }, config.headers || {})
 
-    this.fetcher = fetch
-    this.url = `${BASE_URL}/${version}`
+    if (apiKey) headers.Authorization = apiKey
+
+    this.config = Object.assign({ method: 'GET' }, config, { headers })
+    this.retry = retry || null
+    this.fetcher = fetcher || defaultFetcher
+    const host = baseUrl || (pro ? PRO_BASE_URL : BASE_URL)
+    this.url = `${host}/${version}`
   }
 
   /**
-   * Get global information
+   * Return a new client bound to an AbortSignal. The original client is unchanged.
+   * Use this to scope cancellation to a single call or a small group of calls:
    *
-   * @example
-   * const client = new CoinpaprikaAPI()
-   * client.getGlobal().then(console.log).catch(console.error)
+   *   const controller = new AbortController()
+   *   await client.withSignal(controller.signal).getCoins()
+   *   controller.abort()
    */
+  withSignal (signal) {
+    const clone = Object.create(Object.getPrototypeOf(this))
+    clone.config = Object.assign({}, this.config, { signal })
+    clone.retry = this.retry
+    clone.fetcher = this.fetcher
+    clone.url = this.url
+    return clone
+  }
+
   getGlobal () {
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/global`,
-      config: this.config
-    })
+    return this._request({ path: '/global' })
   }
 
-  /**
-   * Get information on all tickers or specifed ticker.
-   * DEPRECATED
-   *
-   * @param {Object=} options Options for the request
-   *
-   * @example
-   * const client = new CoinpaprikaAPI()
-   * client.getTicker({coinId: 3}).then(console.log).catch(console.error)
-   * client.getTicker().then(console.log).catch(console.error)
-   */
-  getTicker (args = {}) {
-    if (Object.prototype.toString.call(args) !== '[object Object]') {
-      throw Error('Please pass object as arg.')
-    }
-
-    const { coinId } = args
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/ticker${(coinId) ? `/${coinId}` : ''}`,
-      config: this.config
-    })
-  }
-
-  /**
-   * Get tickers for all coins
-   * @param {Object=} options for the request consistent to https://api.coinpaprika.com/#tag/Tickers
-   * @param coinId: string
-   * @param quotes: array of strings
-   * @param historical: object
-   * @example
-   * const client = new CoinpaprikaAPI()
-   * client.getAllTickers({
-   *     coinId:'btc-bitcoin',
-   *     quotes: ['BTC', 'ETH']
-   * })
-   * .then(console.log)
-   * .catch(console.error)
-   *
-   * client.getAllTickers({
-   *     coinId:'btc-bitcoin',
-   *     historical: {
-   *         start: '2018-02-15',
-   *         end: '2018-02-16',
-   *         limit: 2000,
-   *         quote: 'btc',
-   *         interval: '30m'
-   *     }
-   * })
-   * .then(console.log)
-   * .catch(console.error)
-   */
-  getAllTickers (params = {}) {
-    if (Object.prototype.toString.call(params) !== '[object Object]') {
-      throw Error('Please pass object as arg.')
-    }
-
-    const { coinId, quotes, historical } = params
-
-    if ((historical && typeof coinId === 'undefined') || (coinId && historical && typeof historical.start === 'undefined')) {
-      throw Error('required param was not pass, please check CoinpaprikaAPI client usage')
-    }
-
-    const coinIdParam = coinId ? `/${coinId}` : ''
-    const quotesParam = quotes ? `?quotes=${quotes.join(',')}` : ''
-    let historicalParam = ''
-    if (historical && coinId) {
-      historicalParam = ((historicalArgs = {}) => {
-        const { start, end, limit, quote, interval } = historicalArgs
-        const startParam = `start=${start}`
-        const endParam = end ? `&end=${end}` : ''
-        const limitParam = limit ? `&limit=${limit}` : ''
-        const quoteParam = quote ? `&quote=${quote}` : ''
-        const intervalParam = interval ? `&interval=${interval}` : ''
-
-        return `/historical?${startParam}${endParam}${limitParam}${quoteParam}${intervalParam}`
-      })(historical)
-    }
-
-    const query = `${coinIdParam}${historicalParam}${quotesParam}`
-
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/tickers/${query}`,
-      config: this.config
-    })
-  }
-
-  /**
-   * Get a list of all cryptocurrencies available on coinpaprika.com.
-   *
-   * @example
-   * const client = new CoinpaprikaAPI()
-   * client.getCoins().then(console.log).catch(console.error)
-   */
   getCoins () {
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/coins`,
-      config: this.config
-    })
+    return this._request({ path: '/coins' })
   }
 
-  /**
-   * Get particular coin by coinId available on coinpaprika.com.
-   *
-   * @example
-   * const client = new CoinpaprikaAPI()
-   * client.getCoin('btc-bitcoin').then(console.log).catch(console.error)
-   */
-  getCoin (coinId) {
+  getCoin (coinId, params = {}) {
     if (!coinId) throw new Error('Can not be called without coinId')
-
-    return createRequest({
-      fetcher: this.fetcher,
-      url: `${this.url}/coins/${coinId}`
-    })
+    return this._request({ path: `/coins/${coinId}`, query: params })
   }
 
-  /**
-   * Get the coin OHLCV historical
-   * @example
-   * const client = new CoinpaprikaAPI()
-   * client.getCoinsOHLCVHistorical({
-   * coinId: "btc-bitcoin",
-   * quote: "usd",
-   * start: "2020-01-01",
-   * end: "2020-01-02"
-   * }).then(console.log).catch(console.error)
-   */
   getCoinsOHLCVHistorical (params = {}) {
     if (Object.prototype.toString.call(params) !== '[object Object]') {
-      throw Error('Please pass object as arg.')
+      throw new Error('Please pass object as arg.')
     }
-
-    const { coinId, quote, start, end } = params
-
+    const { coinId, start } = params
     if (typeof coinId !== 'string' || typeof start !== 'string' || !coinId || !start) {
-      throw Error('required param was not pass, please check CoinpaprikaAPI client usage')
+      throw new Error('required param was not pass, please check CoinpaprikaAPI client usage')
     }
+    const query = {}
+    if (params.start) query.start = params.start
+    if (params.end) query.end = params.end
+    if (params.quote) query.quote = params.quote
+    return this._request({ path: `/coins/${coinId}/ohlcv/historical`, query })
+  }
 
-    const reqparams = {
-      coinId,
-      start: `?start=${start}`,
-      quote: quote ? `&quote=${quote}` : '',
-      end: end ? `&end=${end}` : ''
-    }
-    const query = `${reqparams.start}${reqparams.end}${reqparams.quote}`
+  getCoinsOHLCVLatest (coinId, params = {}) {
+    if (!coinId) throw new Error('coinId is required')
+    return this._request({ path: `/coins/${coinId}/ohlcv/latest`, query: params })
+  }
 
-    return createRequest({
+  getCoinsOHLCVToday (coinId, params = {}) {
+    if (!coinId) throw new Error('coinId is required')
+    return this._request({ path: `/coins/${coinId}/ohlcv/today`, query: params })
+  }
+
+  getCoinTwitter (coinId) {
+    if (!coinId) throw new Error('coinId is required')
+    return this._request({ path: `/coins/${coinId}/twitter` })
+  }
+
+  getCoinEvents (coinId) {
+    if (!coinId) throw new Error('coinId is required')
+    return this._request({ path: `/coins/${coinId}/events` })
+  }
+
+  getCoinExchanges (coinId) {
+    if (!coinId) throw new Error('coinId is required')
+    return this._request({ path: `/coins/${coinId}/exchanges` })
+  }
+
+  getCoinMarkets (coinId, params = {}) {
+    if (!coinId) throw new Error('coinId is required')
+    return this._request({ path: `/coins/${coinId}/markets`, query: params })
+  }
+
+  /**
+   * Get coin ID mappings to other data providers.
+   * See https://api.coinpaprika.com/ for supported query params.
+   */
+  getCoinsMappings (params = {}) {
+    return this._request({ path: '/coins/mappings', query: params })
+  }
+
+  getPeople (personId) {
+    if (!personId) throw new Error('personId is required')
+    return this._request({ path: `/people/${personId}` })
+  }
+
+  getTags (params = {}) {
+    return this._request({ path: '/tags', query: params })
+  }
+
+  getTag (tagId, params = {}) {
+    if (!tagId) throw new Error('tagId is required')
+    return this._request({ path: `/tags/${tagId}`, query: params })
+  }
+
+  getExchanges (params = {}) {
+    return this._request({ path: '/exchanges', query: params })
+  }
+
+  getExchange (exchangeId, params = {}) {
+    if (!exchangeId) throw new Error('exchangeId is required')
+    return this._request({ path: `/exchanges/${exchangeId}`, query: params })
+  }
+
+  getExchangeMarkets (exchangeId, params = {}) {
+    if (!exchangeId) throw new Error('exchangeId is required')
+    return this._request({ path: `/exchanges/${exchangeId}/markets`, query: params })
+  }
+
+  search (params = {}) {
+    if (!params.q) throw new Error('q (search query) is required')
+    return this._request({ path: '/search', query: params })
+  }
+
+  priceConverter (params = {}) {
+    return this._request({ path: '/price-converter', query: params })
+  }
+
+  getPlatforms () {
+    return this._request({ path: '/contracts' })
+  }
+
+  getContracts (platformId) {
+    if (!platformId) throw new Error('platformId is required')
+    return this._request({ path: `/contracts/${platformId}` })
+  }
+
+  getTickerByContract (platformId, contractAddress) {
+    if (!platformId) throw new Error('platformId is required')
+    if (!contractAddress) throw new Error('contractAddress is required')
+    return this._request({ path: `/contracts/${platformId}/${contractAddress}` })
+  }
+
+  getHistoricalByContract (platformId, contractAddress, params = {}) {
+    if (!platformId) throw new Error('platformId is required')
+    if (!contractAddress) throw new Error('contractAddress is required')
+    return this._request({ path: `/contracts/${platformId}/${contractAddress}/historical`, query: params })
+  }
+
+  getKeyInfo () {
+    return this._request({ path: '/key/info' })
+  }
+
+  /**
+   * Get ID changelog for all coins.
+   * @param {Object=} params - Optional: { page } (default 1; 100 records per page).
+   */
+  getChangelogIds (params = {}) {
+    return this._request({ path: '/changelog/ids', query: params })
+  }
+
+  _request ({ path, query }) {
+    return executeRequest({
       fetcher: this.fetcher,
-      url: `${this.url}/coins/${reqparams.coinId}/ohlcv/historical${query}`,
-      config: this.config
+      url: `${this.url}${path}`,
+      config: this.config,
+      query,
+      retry: this.retry
     })
   }
 }
 
-const createRequest = (args = {}) => {
-  const { url, config, query, fetcher } = args
-  return fetcher(`${url}${query ? `?${qs.stringify(query)}` : ''}`, config).then(res => res.json())
+const RETRY_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504])
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const buildUrl = (url, query) => {
+  if (!query) return url
+  const normalized = Object.fromEntries(
+    Object.entries(query).map(([k, v]) => [k, Array.isArray(v) ? v.join(',') : v])
+  )
+  const qstr = qs.stringify(normalized)
+  return qstr ? `${url}?${qstr}` : url
+}
+
+const executeRequest = async ({ fetcher, url, config, query, retry }) => {
+  const finalUrl = buildUrl(url, query)
+  const attempts = Math.max(1, (retry && retry.attempts) || 1)
+  const baseDelay = (retry && retry.delay) || 300
+
+  let lastError
+
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const res = await fetcher(finalUrl, config)
+      if (res && typeof res.status === 'number' && RETRY_STATUSES.has(res.status) && attempt < attempts) {
+        await sleep(baseDelay * Math.pow(2, attempt - 1))
+        continue
+      }
+      return res.json()
+    } catch (err) {
+      lastError = err
+      if (attempt >= attempts) throw err
+      await sleep(baseDelay * Math.pow(2, attempt - 1))
+    }
+  }
+
+  throw lastError
 }
 
 module.exports = CoinpaprikaAPI
+module.exports.default = CoinpaprikaAPI
