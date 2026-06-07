@@ -8,18 +8,55 @@ describe("getCoin", () => {
   });
 
   it("returns Promise if async/await not used", () => {
-    const response = client.getCoin("btc-bitcoin");
+    const mockClient = new CoinpaprikaAPI({
+      fetcher: () => Promise.resolve({
+        status: 200,
+        json: () => Promise.resolve({})
+      })
+    });
+    const response = mockClient.getCoin("btc-bitcoin");
     expect(response instanceof Promise).toBe(true);
   });
 
   it("throws an error if no coinId provided", () => {
     expect(() => {
-      client.getCoin("btc-bitcoin").resolve();
+      client.getCoin();
     }).toThrow();
   });
 
   it("returns coin info consistent to API documentation", async () => {
-    const response = await client.getCoin("btc-bitcoin");
+    const mockClient = new CoinpaprikaAPI({
+      fetcher: () => Promise.resolve({
+        status: 200,
+        json: () => Promise.resolve({
+          id: "btc-bitcoin",
+          name: "Bitcoin",
+          symbol: "BTC",
+          tags: [],
+          rank: 1,
+          is_new: false,
+          is_active: true,
+          type: "coin",
+          description: "Bitcoin",
+          open_source: true,
+          development_status: "Working product",
+          hardware_wallet: true,
+          proof_type: "Proof of Work",
+          org_structure: "Decentralized",
+          hash_algorithm: "SHA256",
+          links: {},
+          links_extended: [],
+          whitepaper: {},
+          logo: "https://static.coinpaprika.com/coin/btc-bitcoin/logo.png",
+          team: [],
+          message: "",
+          started_at: "2009-01-03T00:00:00Z",
+          first_data_at: "2010-07-17T00:00:00Z",
+          last_data_at: "2026-06-07T00:00:00Z",
+        })
+      })
+    });
+    const response = await mockClient.getCoin("btc-bitcoin");
 
     const expectedProperties = [
       "id",

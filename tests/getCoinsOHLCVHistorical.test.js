@@ -10,14 +10,27 @@ describe('getCoinsOHLCVHistorical', () => {
   const start = weekAgo.toISOString().slice(0, 10)
 
   it('returns array of objects consistent with API documentation', async () => {
-    const weekAgo = new Date(Date.now() - 7 * 1000)
+    const mockClient = new CoinpaprikaAPI({
+      fetcher: () => Promise.resolve({
+        status: 200,
+        json: () => Promise.resolve([{
+          time_open: '2026-06-07T00:00:00Z',
+          time_close: '2026-06-07T01:00:00Z',
+          open: 1,
+          high: 2,
+          low: 1,
+          close: 2,
+          volume: 3,
+          market_cap: 4
+        }])
+      })
+    })
     const params = {
-        coinId: "btc-bitcoin",
-        quote: "usd",
-        start: weekAgo.toISOString().slice(0, 10),
-    } 
-    const response = await client.getCoinsOHLCVHistorical(params)
-    console.log(response)
+      coinId: "btc-bitcoin",
+      quote: "usd",
+      start
+    }
+    const response = await mockClient.getCoinsOHLCVHistorical(params)
     expect(Array.isArray(response)).toBeTruthy()
 
     const expectedProperties = ['time_open', 'time_close', 'open', 'high', 'low', 'close', 'volume', 'market_cap']
@@ -31,12 +44,18 @@ describe('getCoinsOHLCVHistorical', () => {
   })
 
   it('returns Promise if async/await not used', () => {
+    const mockClient = new CoinpaprikaAPI({
+      fetcher: () => Promise.resolve({
+        status: 200,
+        json: () => Promise.resolve([])
+      })
+    })
     const params = {
       coinId: "btc-bitcoin",
       quote: "usd",
       start
     }
-    const response = client.getCoinsOHLCVHistorical(params)
+    const response = mockClient.getCoinsOHLCVHistorical(params)
     expect(response instanceof Promise).toBe(true)
   })
 
