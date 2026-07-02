@@ -67,22 +67,33 @@ describe('integration (nock)', () => {
 
   it('abort via constructor signal surfaces as a rejected promise', async () => {
     const controller = new AbortController()
-    nock(HOST).get('/v1/global').delayConnection(500).reply(200, { ok: true })
-    const client = new CoinpaprikaAPI({ config: { signal: controller.signal } })
+    const fetcher = jest.fn((url, config) => new Promise((resolve, reject) => {
+      config.signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true })
+    }))
+    const client = new CoinpaprikaAPI({ config: { signal: controller.signal }, fetcher })
     const p = client.getGlobal()
     controller.abort()
-    await expect(p).rejects.toThrow()
+    await expect(p).rejects.toThrow('aborted')
   })
 
   it('withSignal scopes abort to a single call without affecting the parent', async () => {
     const controller = new AbortController()
-    nock(HOST).get('/v1/global').delayConnection(500).reply(200, { scoped: true })
-    nock(HOST).get('/v1/coins').reply(200, [{ id: 'btc' }])
+    const fetcher = jest.fn((url, config) => {
+      if (url.endsWith('/global')) {
+        return new Promise((resolve, reject) => {
+          config.signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true })
+        })
+      }
+      return Promise.resolve({
+        status: 200,
+        json: () => Promise.resolve([{ id: 'btc' }])
+      })
+    })
 
-    const client = new CoinpaprikaAPI()
+    const client = new CoinpaprikaAPI({ fetcher })
     const scopedPromise = client.withSignal(controller.signal).getGlobal()
     controller.abort()
-    await expect(scopedPromise).rejects.toThrow()
+    await expect(scopedPromise).rejects.toThrow('aborted')
 
     // The parent client is unaffected and can still make requests.
     const coins = await client.getCoins()

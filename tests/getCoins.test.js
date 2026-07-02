@@ -3,18 +3,33 @@ const CoinpaprikaAPI = require('../index')
 const isObject = obj => Object.prototype.toString.call(obj) === '[object Object]'
 
 describe('getCoins', () => {
-  let client = null
-  beforeEach(() => {
-    client = new CoinpaprikaAPI()
-  })
-
   it('returns Promise if async/await not used', () => {
-    const response = client.getCoins()
+    const mockClient = new CoinpaprikaAPI({
+      fetcher: () => Promise.resolve({
+        status: 200,
+        json: () => Promise.resolve([])
+      })
+    })
+    const response = mockClient.getCoins()
     expect(response instanceof Promise).toBe(true)
   })
 
   it('returns array of objects consistent with API documentation', async () => {
-    const response = await client.getCoins()
+    const mockClient = new CoinpaprikaAPI({
+      fetcher: () => Promise.resolve({
+        status: 200,
+        json: () => Promise.resolve([{
+          id: 'btc-bitcoin',
+          name: 'Bitcoin',
+          symbol: 'BTC',
+          rank: 1,
+          is_new: false,
+          is_active: true,
+          type: 'coin'
+        }])
+      })
+    })
+    const response = await mockClient.getCoins()
     expect(Array.isArray(response)).toBeTruthy()
 
     const expectedProperties = ['id', 'name', 'symbol', 'rank', 'is_new', 'is_active', 'type']
