@@ -15,7 +15,7 @@ This library provides convenient way to use [Coinpaprika.com API](https://api.co
 npm install @coinpaprika/api-nodejs-client
 ```
 
-Requires Node.js **18 or newer** (uses the built-in global `fetch`). If you need to support Node 14–17, stay on the `2.x` line.
+Requires Node.js **18 or newer** (uses the built-in global `fetch`). If you need to support Node 14 to 17, stay on the `2.x` line.
 
 ## Usage
 
@@ -41,7 +41,7 @@ const data = await client.getGlobal();
 
 ### TypeScript
 
-Type declarations ship with the package — no `@types` install needed.
+Type declarations ship with the package, so no `@types` install is needed.
 
 ```ts
 import CoinpaprikaAPI from '@coinpaprika/api-nodejs-client';
@@ -71,7 +71,7 @@ const client = new CoinpaprikaAPI({
 
 ### Pro API key
 
-Pro-tier endpoints (`getCoinsMappings`, `getChangelogIds`, `getKeyInfo`, and some fields on public endpoints) require an API key **and** the Pro host (`https://api-pro.coinpaprika.com`). The client sends the key exactly as documented — `Authorization: <key>` (no `Bearer` prefix).
+Pro-tier endpoints (`getCoinsMappings`, `getChangelogIds`, `getKeyInfo`, and some fields on public endpoints) require an API key **and** the Pro host (`https://api-pro.coinpaprika.com`). The client sends the key exactly as documented: `Authorization: <key>` (no `Bearer` prefix).
 
 ```js
 const client = new CoinpaprikaAPI({
@@ -94,7 +94,7 @@ setTimeout(() => controller.abort(), 100);
 try { await p } catch (e) { /* AbortError */ }
 ```
 
-**Per-call** via `withSignal(signal)` — returns a new client bound to that signal; the original is untouched:
+**Per-call** via `withSignal(signal)` returns a new client bound to that signal; the original is untouched:
 
 ```js
 const client = new CoinpaprikaAPI();
@@ -110,7 +110,7 @@ await client.getGlobal();
 
 ### Retries
 
-Opt in via `retry`. Retries only on transient failures (408, 425, 429, 500–504, network errors); 2xx/4xx (besides the above) are returned as-is. Exponential backoff: `delay * 2^(attempt-1)`.
+Opt in via `retry`. Retries only on transient failures (408, 425, 429, 500 to 504, network errors); 2xx/4xx (besides the above) are returned as-is. Exponential backoff: `delay * 2^(attempt-1)`.
 
 ## API Coverage
 
