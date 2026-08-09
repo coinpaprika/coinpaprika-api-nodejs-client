@@ -40,7 +40,6 @@
   },
   "author": "coinpaprika.com",
   "devDependencies": {
-    "documentation": "^14.0.1",
     "dotenv": "^16.0.3",
     "jest": "^29.5.0",
     "nock": "^14.0.12",
