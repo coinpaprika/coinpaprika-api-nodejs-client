@@ -11,6 +11,55 @@ if (typeof globalThis.fetch !== 'function') {
 
 const defaultFetcher = globalThis.fetch.bind(globalThis)
 
+// Matches a path separator, '\', '?', '#', '%' or whitespace/control characters
+// once the candidate id has been percent-decoded a single time.
+// eslint-disable-next-line no-control-regex
+const UNSAFE_SEGMENT_CHARS = /[/\\?#%\s\x00-\x1f]/
+
+/**
+ * Validate and encode a caller-supplied id as exactly one URL path segment.
+ * Rejects empty ids, '.' / '..', and ids that decode (one percent-decode pass)
+ * to a separator, '?', '#', '%', whitespace or a control character, so a value
+ * like '../key/info' or 'x#y' can never add, remove or replace path segments.
+ */
+const seg = (value) => {
+  const s = String(value)
+  if (s === '') throw new Error('id must not be empty')
+  let decoded
+  try {
+    decoded = decodeURIComponent(s)
+  } catch (err) {
+    throw new Error('invalid id')
+  }
+  if (decoded === '.' || decoded === '..' || UNSAFE_SEGMENT_CHARS.test(decoded)) {
+    throw new Error('invalid id')
+  }
+  return encodeURIComponent(s)
+}
+
+/**
+ * Defence in depth for seg(): confirm that inserting the encoded id did not
+ * change which path the final URL resolves to (catches anything a URL parser
+ * rewrites after the fact, such as normalizing a dot segment).
+ */
+const assertPathIntegrity = (baseUrl, path, fullUrl) => {
+  let expectedPathname
+  try {
+    expectedPathname = new URL(baseUrl).pathname + path
+  } catch (err) {
+    return // baseUrl is not an absolute URL (custom fetcher/base); nothing to verify
+  }
+  let actualPathname
+  try {
+    actualPathname = new URL(fullUrl).pathname
+  } catch (err) {
+    throw new Error('invalid request URL')
+  }
+  if (actualPathname !== expectedPathname) {
+    throw new Error('invalid request path')
+  }
+}
+
 class CoinpaprikaAPI {
   /**
    * @param {Object=} options
@@ -65,7 +114,7 @@ class CoinpaprikaAPI {
 
   getCoin (coinId, params = {}) {
     if (!coinId) throw new Error('Can not be called without coinId')
-    return this._request({ path: `/coins/${coinId}`, query: params })
+    return this._request({ path: `/coins/${seg(coinId)}`, query: params })
   }
 
   getCoinsOHLCVHistorical (params = {}) {
@@ -80,37 +129,37 @@ class CoinpaprikaAPI {
     if (params.start) query.start = params.start
     if (params.end) query.end = params.end
     if (params.quote) query.quote = params.quote
-    return this._request({ path: `/coins/${coinId}/ohlcv/historical`, query })
+    return this._request({ path: `/coins/${seg(coinId)}/ohlcv/historical`, query })
   }
 
   getCoinsOHLCVLatest (coinId, params = {}) {
     if (!coinId) throw new Error('coinId is required')
-    return this._request({ path: `/coins/${coinId}/ohlcv/latest`, query: params })
+    return this._request({ path: `/coins/${seg(coinId)}/ohlcv/latest`, query: params })
   }
 
   getCoinsOHLCVToday (coinId, params = {}) {
     if (!coinId) throw new Error('coinId is required')
-    return this._request({ path: `/coins/${coinId}/ohlcv/today`, query: params })
+    return this._request({ path: `/coins/${seg(coinId)}/ohlcv/today`, query: params })
   }
 
   getCoinTwitter (coinId) {
     if (!coinId) throw new Error('coinId is required')
-    return this._request({ path: `/coins/${coinId}/twitter` })
+    return this._request({ path: `/coins/${seg(coinId)}/twitter` })
   }
 
   getCoinEvents (coinId) {
     if (!coinId) throw new Error('coinId is required')
-    return this._request({ path: `/coins/${coinId}/events` })
+    return this._request({ path: `/coins/${seg(coinId)}/events` })
   }
 
   getCoinExchanges (coinId) {
     if (!coinId) throw new Error('coinId is required')
-    return this._request({ path: `/coins/${coinId}/exchanges` })
+    return this._request({ path: `/coins/${seg(coinId)}/exchanges` })
   }
 
   getCoinMarkets (coinId, params = {}) {
     if (!coinId) throw new Error('coinId is required')
-    return this._request({ path: `/coins/${coinId}/markets`, query: params })
+    return this._request({ path: `/coins/${seg(coinId)}/markets`, query: params })
   }
 
   /**
@@ -123,7 +172,7 @@ class CoinpaprikaAPI {
 
   getPeople (personId) {
     if (!personId) throw new Error('personId is required')
-    return this._request({ path: `/people/${personId}` })
+    return this._request({ path: `/people/${seg(personId)}` })
   }
 
   getTags (params = {}) {
@@ -132,7 +181,7 @@ class CoinpaprikaAPI {
 
   getTag (tagId, params = {}) {
     if (!tagId) throw new Error('tagId is required')
-    return this._request({ path: `/tags/${tagId}`, query: params })
+    return this._request({ path: `/tags/${seg(tagId)}`, query: params })
   }
 
   getExchanges (params = {}) {
@@ -141,12 +190,12 @@ class CoinpaprikaAPI {
 
   getExchange (exchangeId, params = {}) {
     if (!exchangeId) throw new Error('exchangeId is required')
-    return this._request({ path: `/exchanges/${exchangeId}`, query: params })
+    return this._request({ path: `/exchanges/${seg(exchangeId)}`, query: params })
   }
 
   getExchangeMarkets (exchangeId, params = {}) {
     if (!exchangeId) throw new Error('exchangeId is required')
-    return this._request({ path: `/exchanges/${exchangeId}/markets`, query: params })
+    return this._request({ path: `/exchanges/${seg(exchangeId)}/markets`, query: params })
   }
 
   search (params = {}) {
@@ -164,19 +213,19 @@ class CoinpaprikaAPI {
 
   getContracts (platformId) {
     if (!platformId) throw new Error('platformId is required')
-    return this._request({ path: `/contracts/${platformId}` })
+    return this._request({ path: `/contracts/${seg(platformId)}` })
   }
 
   getTickerByContract (platformId, contractAddress) {
     if (!platformId) throw new Error('platformId is required')
     if (!contractAddress) throw new Error('contractAddress is required')
-    return this._request({ path: `/contracts/${platformId}/${contractAddress}` })
+    return this._request({ path: `/contracts/${seg(platformId)}/${seg(contractAddress)}` })
   }
 
   getHistoricalByContract (platformId, contractAddress, params = {}) {
     if (!platformId) throw new Error('platformId is required')
     if (!contractAddress) throw new Error('contractAddress is required')
-    return this._request({ path: `/contracts/${platformId}/${contractAddress}/historical`, query: params })
+    return this._request({ path: `/contracts/${seg(platformId)}/${seg(contractAddress)}/historical`, query: params })
   }
 
   getKeyInfo () {
@@ -192,9 +241,11 @@ class CoinpaprikaAPI {
   }
 
   _request ({ path, query }) {
+    const url = `${this.url}${path}`
+    assertPathIntegrity(this.url, path, url)
     return executeRequest({
       fetcher: this.fetcher,
-      url: `${this.url}${path}`,
+      url,
       config: this.config,
       query,
       retry: this.retry
