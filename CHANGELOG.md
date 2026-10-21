@@ -3,6 +3,11 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.1] - 2026-10-21
+
+### Fixed (security)
+- **Path parameters are now validated and encoded as a single URL segment.** Every id-taking method (`getCoin`, `getCoinsOHLCVHistorical`, `getCoinsOHLCVLatest`, `getCoinsOHLCVToday`, `getCoinTwitter`, `getCoinEvents`, `getCoinExchanges`, `getCoinMarkets`, `getPeople`, `getTag`, `getExchange`, `getExchangeMarkets`, `getContracts`, `getTickerByContract`, `getHistoricalByContract`) previously interpolated the caller's id straight into the request path. A value such as `'../key/info'` could redirect the request to a different endpoint on the configured host under the operator's key and return that endpoint's response to the caller. Ids are now rejected if empty, `.`/`..`, or if they decode (one percent-decode pass) to a path separator, `?`, `#`, `%`, whitespace or a control character, and are otherwise percent-encoded as exactly one path segment; the constructed URL's path is verified against the one that was built before the request is sent.
+
 ## [3.0.0] - 2026-04-13
 
 ### Fixed (per Coinpaprika API docs audit)
